@@ -21,11 +21,10 @@ const Header = () => {
   const [showPatientReg, setShowPatientReg] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  // Forms inputs
+  // Form inputs
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [email, setEmail] = useState("");
-  const [userPass, setUserPass] = useState("");
+  const [forgotEmail, setForgotEmail] = useState("");
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -54,7 +53,7 @@ const Header = () => {
     { name: "Reports", href: "/reports" },
   ];
 
-  // Close modal and reset states
+  // Close modal and reset all login states and form inputs
   const closeModal = () => {
     setShowLoginModal(false);
     setLoginRole(null);
@@ -62,32 +61,33 @@ const Header = () => {
     setShowForgotPassword(false);
     setUsername("");
     setPassword("");
-    setEmail("");
-    setUserPass("");
+    setForgotEmail("");
   };
 
-  // Handlers
+  // Handle Patient Login form submit
   const handlePatientLogin = (e) => {
     e.preventDefault();
     alert(`Patient logged in as ${username}`);
     closeModal();
   };
 
+  // Handle Doctor/Admin Login form submit
   const handleUserLogin = (e) => {
     e.preventDefault();
     alert(`${loginRole.charAt(0).toUpperCase() + loginRole.slice(1)} logged in as ${username}`);
     closeModal();
   };
 
-  const handleForgotPassword = (e) => {
+  // Handle Forgot Password submit
+  const handleForgotPasswordSubmit = (e) => {
     e.preventDefault();
-    alert(`Password reset link sent to ${email}`);
+    alert(`Password reset link sent to ${forgotEmail}`);
     setShowForgotPassword(false);
+    setForgotEmail("");
   };
 
   return (
     <>
-      {/* Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out ${
           isScrolled
@@ -98,10 +98,7 @@ const Header = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-18 lg:h-20">
             {/* Logo */}
-            <Link
-              to="/"
-              className="flex items-center space-x-2 sm:space-x-3 group cursor-pointer flex-shrink-0"
-            >
+            <Link to="/" className="flex items-center space-x-3 cursor-pointer flex-shrink-0">
               <div className="relative">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
                   <img
@@ -121,9 +118,7 @@ const Header = () => {
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
                   AyurSutra
                 </h1>
-                <p className="text-xs text-gray-600 -mt-1">
-                  Ayurvedic Wellness Platform
-                </p>
+                <p className="text-xs text-gray-600 -mt-1">Ayurvedic Wellness Platform</p>
               </div>
             </Link>
 
@@ -193,21 +188,19 @@ const Header = () => {
             </nav>
 
             {/* Login/Profile */}
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              {/* Notification bell */}
+            <div className="flex items-center space-x-3">
               <button className="hidden sm:flex p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg">
                 <BellIcon className="w-5 h-5" />
               </button>
 
-              {/* Login or Profile */}
               {isLoggedIn ? (
-                <div className="hidden sm:flex items-center space-x-2">
+                <div className="hidden sm:flex items-center space-x-3">
                   <img
                     src="https://images.unsplash.com/photo-1472099645785-565ff4ffac26?w=40"
                     alt="Profile"
-                    className="w-7 h-7 rounded-full ring-2 ring-green-200"
+                    className="w-8 h-8 rounded-full ring-2 ring-green-200"
                   />
-                  <span className="hidden md:block text-sm font-medium text-gray-700">Dr. Smith</span>
+                  <span className="text-gray-700 font-medium">Dr. Smith</span>
                 </div>
               ) : (
                 <button
@@ -219,7 +212,6 @@ const Header = () => {
                 </button>
               )}
 
-              {/* Mobile menu button */}
               <button
                 onClick={() => setIsMobileOpen(!isMobileOpen)}
                 className="lg:hidden p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg"
@@ -238,15 +230,12 @@ const Header = () => {
           }`}
         >
           <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
-            {/* Render nav Items mobile */}
             {navItems.map((item) => (
               <div key={item.name}>
                 {item.dropdown ? (
                   <>
                     <button
-                      onClick={() =>
-                        setActiveDropdown(activeDropdown === item.name ? null : item.name)
-                      }
+                      onClick={() => setActiveDropdown(activeDropdown === item.name ? null : item.name)}
                       className="flex justify-between px-4 py-3 w-full text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg"
                     >
                       {item.name}
@@ -285,7 +274,6 @@ const Header = () => {
               </div>
             ))}
 
-            {/* Mobile login button */}
             <div className="border-t border-gray-200 pt-4">
               {isLoggedIn ? (
                 <div className="flex items-center px-4 py-3 space-x-3">
@@ -321,7 +309,7 @@ const Header = () => {
             className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm w-full max-h-[650px] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {!loginRole && !showPatientReg ? (
+            {!loginRole && !showPatientReg && !showForgotPassword ? (
               <>
                 <button
                   aria-label="Close"
@@ -354,14 +342,15 @@ const Header = () => {
               </>
             ) : null}
 
-            {loginRole === "patient" && !showPatientReg ? (
+            {loginRole === "patient" && !showPatientReg && !showForgotPassword ? (
               <PatientLogin
                 onBack={() => setLoginRole(null)}
                 setShowPatientReg={setShowPatientReg}
+                setShowForgotPassword={setShowForgotPassword}
               />
             ) : null}
 
-            {loginRole !== "patient" && loginRole && !showPatientReg ? (
+            {loginRole !== "patient" && loginRole && !showPatientReg && !showForgotPassword ? (
               <UserLogin role={loginRole} onBack={() => setLoginRole(null)} />
             ) : null}
 
@@ -379,6 +368,12 @@ const Header = () => {
                 </button>
               </div>
             ) : null}
+
+            {showForgotPassword ? (
+              <ForgotPassword
+                setShowForgotPassword={setShowForgotPassword}
+              />
+            ) : null}
           </div>
         </div>
       )}
@@ -386,13 +381,10 @@ const Header = () => {
   );
 };
 
-const PatientLogin = ({ onBack, setShowPatientReg }) => {
+
+const PatientLogin = ({ onBack, setShowPatientReg, setShowForgotPassword }) => {
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
-
-  const handleForgot = () => {
-    setShowPatientReg(true);
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -401,11 +393,7 @@ const PatientLogin = ({ onBack, setShowPatientReg }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 relative">
-      <button
-        type="button"
-        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-        onClick={onBack}
-      >
+      <button type="button" className="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onClick={onBack}>
         ← Back
       </button>
       <h3 className="text-lg font-semibold text-center">Patient Login</h3>
@@ -430,31 +418,22 @@ const PatientLogin = ({ onBack, setShowPatientReg }) => {
         className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500"
       />
 
-      <button
-        type="submit"
-        className="w-full bg-green-600 text-white py-3 rounded-md font-semibold"
-      >
+      <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-md font-semibold">
         Login
       </button>
+
       <div className="flex justify-between mt-2 text-sm">
-        <button
-          type="button"
-          className="text-green-600 hover:underline"
-          onClick={handleForgot}
-        >
+        <button type="button" className="text-green-600 hover:underline" onClick={() => setShowPatientReg(true)}>
           New Patient? Register
         </button>
-        <button
-          type="button"
-          className="text-green-600 hover:underline"
-          onClick={() => alert("Redirect to forgot password flow")}
-        >
+        <button type="button" className="text-green-600 hover:underline" onClick={() => setShowForgotPassword(true)}>
           Forgot Password?
         </button>
       </div>
     </form>
   );
 };
+
 
 const UserLogin = ({ role, onBack }) => {
   const [username, setUsername] = React.useState("");
@@ -467,11 +446,7 @@ const UserLogin = ({ role, onBack }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 relative">
-      <button
-        type="button"
-        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-        onClick={onBack}
-      >
+      <button type="button" className="absolute top-4 right-4 text-gray-600 hover:text-gray-900" onClick={onBack}>
         ← Back
       </button>
       <h3 className="text-lg font-semibold text-center">
@@ -498,11 +473,42 @@ const UserLogin = ({ role, onBack }) => {
         className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500"
       />
 
-      <button
-        type="submit"
-        className="w-full bg-green-600 text-white py-3 rounded-md font-semibold"
-      >
+      <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-md font-semibold">
         Login
+      </button>
+    </form>
+  );
+};
+
+
+const ForgotPassword = ({ setShowForgotPassword }) => {
+  const [email, setEmail] = React.useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    alert(`Password reset link sent to ${email}`);
+    setShowForgotPassword(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 relative">
+      <button type="button" className="absolute top-4 right-4 text-gray-600 hover:text-gray-900" onClick={() => setShowForgotPassword(false)}>
+        ← Back
+      </button>
+      <h3 className="text-xl font-semibold text-center mb-6">Forgot Password</h3>
+
+      <label className="block mb-1">Email</label>
+      <input
+        type="email"
+        placeholder="Your registered email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500"
+      />
+
+      <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-md font-semibold">
+        Send Reset Link
       </button>
     </form>
   );
