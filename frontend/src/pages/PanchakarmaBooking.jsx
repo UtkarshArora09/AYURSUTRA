@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import {
-    CalendarIcon,
-    ClockIcon,
-    UserIcon,
-    PhoneIcon,
-    BuildingOffice2Icon,
-    InformationCircleIcon,
-    CheckCircleIcon
-} from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, UserIcon, PhoneIcon, BuildingOffice2Icon, InformationCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import AppointmentReceipt from '../components/AppointmentReceipt';
 
 const PanchakarmaBooking = () => {
     // Patient data (auto-fetched from backend/database)
@@ -39,6 +32,9 @@ const PanchakarmaBooking = () => {
     const [recommendedTreatment, setRecommendedTreatment] = useState(null);
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1);
+
+    // Booking confirmation data
+    const [confirmedBookingData, setConfirmedBookingData] = useState(null);
 
     // Mock data - Replace with actual API calls
     const mockDoctors = [
@@ -106,10 +102,15 @@ const PanchakarmaBooking = () => {
         setCenters(mockCenters);
     }, []);
 
+    // Effect to load dates when step changes to 3
+    useEffect(() => {
+        if (step === 3 && formData.selectedDoctor && formData.selectedCenter && availableDates.length === 0) {
+            fetchAvailableDates(formData.selectedDoctor.id, formData.selectedCenter.id);
+        }
+    }, [step, formData.selectedDoctor, formData.selectedCenter]);
+
     const fetchPatientData = async () => {
         // TODO: Replace with actual API call
-        // const response = await fetch('/api/patient/current');
-        // setPatientData(await response.json());
     };
 
     const fetchAvailableDates = async (doctorId, centerId) => {
@@ -185,11 +186,11 @@ const PanchakarmaBooking = () => {
 
         // Trigger availability fetch when doctor, center, or dosha changes
         if (field === 'selectedDoctor' || field === 'selectedCenter') {
-            if (formData.selectedDoctor && formData.selectedCenter) {
-                fetchAvailableDates(
-                    field === 'selectedDoctor' ? value.id : formData.selectedDoctor.id,
-                    field === 'selectedCenter' ? value.id : formData.selectedCenter.id
-                );
+            const doctorId = field === 'selectedDoctor' ? value.id : formData.selectedDoctor?.id;
+            const centerId = field === 'selectedCenter' ? value.id : formData.selectedCenter?.id;
+            
+            if (doctorId && centerId) {
+                fetchAvailableDates(doctorId, centerId);
             }
         }
 
@@ -210,15 +211,38 @@ const PanchakarmaBooking = () => {
             ...patientData,
             ...formData,
             bookingId: `PCK-${Date.now()}`,
-            status: 'confirmed'
+            status: 'confirmed',
+            bookingDate: new Date().toISOString().split('T')[0],
+            bookingTime: new Date().toLocaleTimeString(),
+            recommendedTreatment
         };
 
         // TODO: Submit to backend
         setTimeout(() => {
-            alert('Appointment booked successfully!');
+            setConfirmedBookingData(bookingData);
             setLoading(false);
-            setStep(4); // Confirmation step
+            setStep(4); // Confirmation step with receipt
         }, 2000);
+    };
+
+    // Receipt handlers
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const handleDownload = () => {
+        window.print();
+    };
+
+    // Function to move to next step with validation
+    const goToStep3 = () => {
+        if (formData.selectedDoctor && formData.selectedCenter) {
+            setStep(3);
+            // Trigger date fetch if not already loaded
+            if (availableDates.length === 0) {
+                fetchAvailableDates(formData.selectedDoctor.id, formData.selectedCenter.id);
+            }
+        }
     };
 
     return (
@@ -446,7 +470,7 @@ const PanchakarmaBooking = () => {
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setStep(3)}
+                                        onClick={goToStep3}
                                         disabled={!formData.selectedDoctor || !formData.selectedCenter}
                                         className="px-8 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -489,7 +513,7 @@ const PanchakarmaBooking = () => {
                                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
                                             <span className="ml-3 text-gray-600">Loading available dates...</span>
                                         </div>
-                                    ) : (
+                                    ) : availableDates.length > 0 ? (
                                         <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-7 gap-3">
                                             {availableDates.map((date) => {
                                                 const dateObj = new Date(date);
@@ -512,6 +536,10 @@ const PanchakarmaBooking = () => {
                                                     </div>
                                                 );
                                             })}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8">
+                                            <p className="text-gray-500">Loading dates or no available dates found.</p>
                                         </div>
                                     )}
                                 </div>
@@ -621,20 +649,12 @@ const PanchakarmaBooking = () => {
                             </div>
                         )}
 
-                        {/* Step 4: Confirmation */}
-            // Step 4: Receipt Generation and Confirmation
-                        {step === 4 && (
+                        {/* Step 4: Confirmation with Receipt */}
+                        {step === 4 && confirmedBookingData && (
                             <AppointmentReceipt
-                                bookingData={{
-                                    ...patientData,
-                                    ...formData,
-                                    bookingId: `PCK-${Date.now()}`,
-                                    bookingDate: new Date().toISOString().split('T')[0],
-                                    bookingTime: new Date().toLocaleTimeString(),
-                                    recommendedTreatment
-                                }}
-                                onPrint={() => window.print()}
-                                onDownload={() => downloadReceipt()}
+                                bookingData={confirmedBookingData}
+                                onPrint={handlePrint}
+                                onDownload={handleDownload}
                             />
                         )}
                     </form>

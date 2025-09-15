@@ -221,6 +221,24 @@ const Therapies = () => {
         </div>
         <p className="text-xs sm:text-sm opacity-95">{therapy.description}</p>
       </div>
+      {/* Floating Image Circles */}
+<div className="absolute top-24 left-20 w-32 h-32 rounded-full overflow-hidden shadow-xl animate-float pointer-events-none z-0">
+  <img
+    src="/assets/ayurveda1.png"
+    alt="Ayurveda Symbol"
+    className="w-full h-full object-cover"
+  />
+</div>
+
+<div className="absolute top-20 right-6 w-36 h-36 rounded-full overflow-hidden shadow-xl animate-float-reverse pointer-events-none z-0">
+  <img
+    src="/assets/ayurveda3.png"
+    alt="Ayurveda Symbol"
+    className="w-full h-full object-cover"
+  />
+</div>
+
+
 
       {/* Content - Made flexible to push buttons to bottom */}
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 flex-grow flex flex-col">
@@ -297,10 +315,10 @@ const Therapies = () => {
             {/* Header Section */}
             <div className="text-center max-w-4xl mx-auto">
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-3 sm:mb-4">
-                🕉️ Panchakarma Therapy Catalogue
+          Panchakarma Therapy Catalogue
               </h2>
               <p className="text-sm sm:text-base md:text-lg text-gray-600 leading-relaxed px-4 sm:px-0">
-                Discover the ancient wisdom of Panchakarma - five powerful detoxification therapies 
+                Discover the ancient wisdom      of Panchakarma - five powerful detoxification therapies 
                 designed to cleanse, balance, and rejuvenate your mind, body, and spirit. Each therapy 
                 targets specific doshas and health conditions for optimal healing.
               </p>
@@ -344,7 +362,7 @@ const Therapies = () => {
           <div className="space-y-6 sm:space-y-8">
             <div className="text-center px-4 sm:px-0">
               <ClipboardDocumentListIcon className="w-12 h-12 sm:w-16 sm:h-16 text-green-600 mx-auto mb-4" />
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">Assigned Therapies</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">Assign Therapies</h2>
               <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
                 Assign specific Panchakarma therapies to patients based on their constitution, 
                 health conditions, and treatment goals. Create personalized therapy plans.
@@ -417,9 +435,9 @@ const Therapies = () => {
                 onClick={setActiveTab}
               />
               <TabButton
-                tabName="assigned"
+                tabName="assign"
                 icon={ClipboardDocumentListIcon}
-                title="Assigned"
+                title="Assign"
                 isActive={activeTab === 'assign'}
                 onClick={setActiveTab}
               />
