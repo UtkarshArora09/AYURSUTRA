@@ -6,8 +6,9 @@ import {
   BellIcon,
   Bars3Icon,
   XMarkIcon,
+  ArrowRightStartOnRectangleIcon,
 } from "@heroicons/react/24/outline";
-import PatientRegistration from "../../components/PatientRegistration/PatientRegistration"; // Adjust path as needed
+import PatientRegistration from "../../components/PatientRegistration/PatientRegistration";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -18,6 +19,17 @@ const Header = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  // User data state
+  const [userData, setUserData] = useState({
+    name: "",
+    role: "",
+    email: "",
+    avatar: ""
+  });
+
+  // Profile dropdown state
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   // Login modal state
   const [loginRole, setLoginRole] = useState(null);
@@ -33,6 +45,25 @@ const Header = () => {
   const [password, setPassword] = useState("");
   const [forgotEmail, setForgotEmail] = useState("");
 
+  // Check for existing login on component mount
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const savedUser = localStorage.getItem('ayursutra_user');
+      if (savedUser) {
+        try {
+          const user = JSON.parse(savedUser);
+          setUserData(user);
+          setIsLoggedIn(true);
+        } catch (error) {
+          console.error('Error parsing saved user data:', error);
+          localStorage.removeItem('ayursutra_user');
+        }
+      }
+    };
+
+    checkAuthStatus();
+  }, []);
+
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
@@ -47,37 +78,146 @@ const Header = () => {
     }
   }, [showLoginModal, showAppointmentModal]);
 
-  // Navigation items with actions for appointments
-  const navItems = [
-    { name: "Home", href: "/" },
-    {
-      name: "Patients",
-      dropdown: [
-        { name: "Register", href: "/patients", icon: "👤" },
-        { name: "List", href: "/patients/list", icon: "📋" },
-        { name: "Profiles", href: "/patients/profiles", icon: "👥" },
-      ],
-    },
-    { name: "Therapies", href: "/therapies" },
-    {
-      name: "Appointments",
-      dropdown: [
-        {
-          name: "Panchakarma",
-          href: "#",
-          action: () => openAppointmentModal("Panchakarma"),
-        },
-        {
-          name: "General Appointment",
-          href: "#",
-          action: () => openAppointmentModal("General Appointment"),
-        },
-      ],
-    },
-    { name: "Queue", href: "/queuetrends" },
-    { name: "Dashboard", href: "/dashboard" },
-    { name: "Reports", href: "/reports" },
-  ];
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showProfileDropdown && !event.target.closest('.profile-dropdown')) {
+        setShowProfileDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileDropdown]);
+
+  // Generate user initials
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join('');
+  };
+
+  // Get role-based background color for avatar
+  const getRoleColor = (role) => {
+    switch (role.toLowerCase()) {
+      case 'doctor':
+        return 'from-blue-500 to-blue-600';
+      case 'admin':
+        return 'from-purple-500 to-purple-600';
+      case 'patient':
+        return 'from-green-500 to-green-600';
+      default:
+        return 'from-gray-500 to-gray-600';
+    }
+  };
+
+  // Get role-based dashboard route
+  const getDashboardRoute = (role) => {
+    switch (role.toLowerCase()) {
+      case 'doctor':
+        return '/doctor-dashboard';
+      case 'admin':
+        return '/admin-dashboard';
+      case 'patient':
+        return '/patient-dashboard';
+      default:
+        return '/dashboard';
+    }
+  };
+
+  // Get role-based dashboard name
+  const getDashboardName = (role) => {
+    switch (role.toLowerCase()) {
+      case 'doctor':
+        return 'Doctor Dashboard';
+      case 'admin':
+        return 'Admin Dashboard';
+      case 'patient':
+        return 'Patient Dashboard';
+      default:
+        return 'Dashboard';
+    }
+  };
+
+  // Handle dashboard navigation based on user role
+  const handleDashboardClick = () => {
+    if (isLoggedIn && userData.role) {
+      const dashboardRoute = getDashboardRoute(userData.role);
+      navigate(dashboardRoute);
+    } else {
+      // If not logged in, redirect to general dashboard or show login
+      navigate('/dashboard');
+    }
+  };
+
+  // Navigation items with conditional dashboard
+  const getNavItems = () => {
+    const baseItems = [
+      { name: "Home", href: "/" },
+      {
+        name: "Patients",
+        dropdown: [
+          { name: "Register", href: "/patients", icon: "👤" },
+          { name: "List", href: "/patients/list", icon: "📋" },
+          { name: "Profiles", href: "/patients/profiles", icon: "👥" },
+        ],
+      },
+      { name: "Therapies", href: "/therapies" },
+      {
+        name: "Appointments",
+        dropdown: [
+          {
+            name: "Panchakarma",
+            href: "#",
+            action: () => openAppointmentModal("Panchakarma"),
+          },
+          {
+            name: "General Appointment",
+            href: "#",
+            action: () => openAppointmentModal("General Appointment"),
+          },
+        ],
+      },
+      { name: "Queue", href: "/queue" },
+      { 
+        name: isLoggedIn ? getDashboardName(userData.role) : "Dashboard", 
+        href: "#",
+        action: handleDashboardClick
+      },
+      { name: "Reports", href: "/reports" },
+    ];
+
+    // Filter navigation items based on user role
+    if (isLoggedIn && userData.role) {
+      switch (userData.role.toLowerCase()) {
+        case 'patient':
+          // Patient sees limited navigation
+          return baseItems.filter(item => 
+            ['Home', 'Appointments', 'Queue', 'Patient Dashboard', 'Reports'].includes(item.name)
+          );
+        
+        case 'doctor':
+          // Doctor sees all items
+          return baseItems;
+        
+        case 'admin':
+          // Admin sees all items
+          return baseItems;
+        
+        default:
+          return baseItems;
+      }
+    }
+    
+    return baseItems;
+  };
+
+  const navItems = getNavItems();
 
   // Modal control functions
   const closeModal = () => {
@@ -113,16 +253,42 @@ const Header = () => {
     closeAppointmentModal();
   };
 
-  // Login handlers
+  // Updated login handlers with user data storage
   const handlePatientLogin = (e) => {
     e.preventDefault();
-    alert(`Patient logged in as ${username}`);
+    
+    const user = {
+      name: username === "john.doe" ? "John Doe" : username.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      role: "Patient",
+      email: `${username}@email.com`,
+      avatar: ""
+    };
+
+    localStorage.setItem('ayursutra_user', JSON.stringify(user));
+    setUserData(user);
+    setIsLoggedIn(true);
+    
+    alert(`Patient logged in as ${user.name}`);
     closeModal();
   };
 
   const handleUserLogin = (e) => {
     e.preventDefault();
-    alert(`${loginRole.charAt(0).toUpperCase() + loginRole.slice(1)} logged in as ${username}`);
+    
+    const user = {
+      name: username === "dr.priya" ? "Dr. Priya Sharma" : 
+            username === "admin" ? "Admin User" :
+            username.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      role: loginRole.charAt(0).toUpperCase() + loginRole.slice(1),
+      email: `${username}@ayursutra.com`,
+      avatar: ""
+    };
+
+    localStorage.setItem('ayursutra_user', JSON.stringify(user));
+    setUserData(user);
+    setIsLoggedIn(true);
+    
+    alert(`${user.role} logged in as ${user.name}`);
     closeModal();
   };
 
@@ -131,6 +297,18 @@ const Header = () => {
     alert(`Password reset link sent to ${forgotEmail}`);
     setShowForgotPassword(false);
     setForgotEmail("");
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem('ayursutra_user');
+    setUserData({ name: "", role: "", email: "", avatar: "" });
+    setIsLoggedIn(false);
+    setShowProfileDropdown(false);
+    
+    navigate('/');
+    
+    alert('You have been logged out successfully');
   };
 
   // Dropdown hover control
@@ -177,6 +355,7 @@ const Header = () => {
                               onClick={(e) => {
                                 e.preventDefault();
                                 if (sub.action) sub.action();
+                                setActiveDropdown(null);
                               }}
                               className="w-full text-left px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-xl flex items-center"
                             >
@@ -198,8 +377,24 @@ const Header = () => {
                       </div>
                     </div>
                   </div>
+                ) : item.action ? (
+                  <button 
+                    key={item.name} 
+                    onClick={item.action}
+                    className={`px-3 py-2 font-medium rounded-lg transition-all duration-300 ${
+                      isLoggedIn && item.name.includes('Dashboard') 
+                        ? 'text-green-600 bg-green-50 hover:bg-green-100' 
+                        : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
+                    }`}
+                  >
+                    {item.name}
+                  </button>
                 ) : (
-                  <Link key={item.name} to={item.href} className="px-3 py-2 text-gray-700 hover:text-green-600 font-medium rounded-lg">
+                  <Link 
+                    key={item.name} 
+                    to={item.href} 
+                    className="px-3 py-2 text-gray-700 hover:text-green-600 font-medium rounded-lg hover:bg-green-50 transition-all duration-300"
+                  >
                     {item.name}
                   </Link>
                 )
@@ -208,23 +403,123 @@ const Header = () => {
 
             {/* Login/Profile */}
             <div className="flex items-center space-x-3">
-              <button className="hidden sm:flex p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg">
+              {/* Notifications */}
+              <button className="hidden sm:flex p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
                 <BellIcon className="w-5 h-5" />
               </button>
 
+              {/* User Profile or Login */}
               {isLoggedIn ? (
-                <div className="hidden sm:flex items-center space-x-3">
-                  <img src="https://images.unsplash.com/photo-1472099645785-565ff4ffac26?w=40" alt="Profile" className="w-8 h-8 rounded-full ring-2 ring-green-200" />
-                  <span className="text-gray-700 font-medium">Dr. Smith</span>
+                <div className="hidden sm:flex items-center space-x-3 profile-dropdown relative">
+                  {/* User Avatar with Initials */}
+                  <div 
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${getRoleColor(userData.role)} flex items-center justify-center text-white font-bold text-sm cursor-pointer ring-2 ring-green-200 hover:ring-green-300 transition-all`}
+                    onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  >
+                    {userData.avatar ? (
+                      <img 
+                        src={userData.avatar} 
+                        alt={userData.name} 
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      getInitials(userData.name)
+                    )}
+                  </div>
+
+                  {/* User Name and Role */}
+                  <div 
+                    className="cursor-pointer hover:text-green-600 transition-colors"
+                    onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  >
+                    <p className="text-gray-800 font-medium text-sm leading-tight">{userData.name}</p>
+                    <p className="text-gray-500 text-xs">{userData.role}</p>
+                  </div>
+
+                  {/* Profile Dropdown */}
+                  {showProfileDropdown && (
+                    <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
+                      <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${getRoleColor(userData.role)} flex items-center justify-center text-white font-bold`}>
+                            {userData.avatar ? (
+                              <img 
+                                src={userData.avatar} 
+                                alt={userData.name} 
+                                className="w-full h-full rounded-full object-cover"
+                              />
+                            ) : (
+                              getInitials(userData.name)
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-800">{userData.name}</p>
+                            <p className="text-sm text-gray-600">{userData.role}</p>
+                            <p className="text-xs text-gray-500">{userData.email}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-2">
+                        {/* Role-based Dashboard Link */}
+                        <button
+                          onClick={() => {
+                            handleDashboardClick();
+                            setShowProfileDropdown(false);
+                          }}
+                          className="w-full px-4 py-3 text-green-700 hover:text-green-800 hover:bg-green-50 rounded-xl flex items-center font-medium"
+                        >
+                          <UserIcon className="w-5 h-5 mr-3" />
+                          {getDashboardName(userData.role)}
+                        </button>
+                        
+                        <Link
+                          to="/profile"
+                          className="w-full px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-xl flex items-center"
+                          onClick={() => setShowProfileDropdown(false)}
+                        >
+                          <UserIcon className="w-5 h-5 mr-3" />
+                          View Profile
+                        </Link>
+                        
+                        <Link
+                          to="/settings"
+                          className="w-full px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-xl flex items-center"
+                          onClick={() => setShowProfileDropdown(false)}
+                        >
+                          <BellIcon className="w-5 h-5 mr-3" />
+                          Settings
+                        </Link>
+                        
+                        <div className="border-t border-gray-100 mt-2 pt-2">
+                          <button
+                            onClick={handleLogout}
+                            className="w-full px-4 py-3 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl flex items-center font-medium"
+                          >
+                            <ArrowRightStartOnRectangleIcon className="w-5 h-5 mr-3" />
+                            Logout
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <button onClick={() => setShowLoginModal(true)} className="hidden sm:flex bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-xl font-medium">
+                <button 
+                  onClick={() => setShowLoginModal(true)} 
+                  className="hidden sm:flex bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-xl font-medium transition-all"
+                >
                   <UserIcon className="w-4 h-4 mr-1" />
                   Login
                 </button>
               )}
 
-              <button onClick={() => setIsMobileOpen(!isMobileOpen)} className="lg:hidden p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg" aria-label="Toggle mobile menu">
+              {/* Mobile Menu Toggle */}
+              <button 
+                onClick={() => setIsMobileOpen(!isMobileOpen)} 
+                className="lg:hidden p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                aria-label="Toggle mobile menu"
+              >
                 {isMobileOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
               </button>
             </div>
@@ -271,22 +566,96 @@ const Header = () => {
                       ))}
                     </div>
                   </>
+                ) : item.action ? (
+                  <button
+                    onClick={() => {
+                      item.action();
+                      setIsMobileOpen(false);
+                    }}
+                    className={`block px-4 py-3 w-full text-left rounded-lg transition-all ${
+                      isLoggedIn && item.name.includes('Dashboard')
+                        ? 'text-green-600 bg-green-50 hover:bg-green-100 font-medium'
+                        : 'text-gray-700 hover:bg-green-50 hover:text-green-600'
+                    }`}
+                  >
+                    {item.name}
+                  </button>
                 ) : (
-                  <Link to={item.href} onClick={() => setIsMobileOpen(false)} className="block px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg">
+                  <Link 
+                    to={item.href} 
+                    onClick={() => setIsMobileOpen(false)} 
+                    className="block px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg"
+                  >
                     {item.name}
                   </Link>
                 )}
               </div>
             ))}
 
+            {/* Mobile User Section */}
             <div className="border-t border-gray-200 pt-4">
               {isLoggedIn ? (
-                <div className="flex items-center px-4 py-3 space-x-3">
-                  <img src="https://images.unsplash.com/photo-1472099645785-565ff4ffac26?w=40" alt="Profile" className="w-8 h-8 rounded-full ring-2 ring-green-200" />
-                  <span className="text-gray-700 font-medium">Dr. Smith</span>
+                <div className="space-y-2">
+                  {/* User Info */}
+                  <div className="flex items-center px-4 py-3 space-x-3 bg-green-50 rounded-lg">
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getRoleColor(userData.role)} flex items-center justify-center text-white font-bold text-sm`}>
+                      {userData.avatar ? (
+                        <img 
+                          src={userData.avatar} 
+                          alt={userData.name} 
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        getInitials(userData.name)
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800">{userData.name}</p>
+                      <p className="text-sm text-gray-600">{userData.role}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Mobile Dashboard Button */}
+                  <button
+                    onClick={() => {
+                      handleDashboardClick();
+                      setIsMobileOpen(false);
+                    }}
+                    className="w-full flex items-center px-4 py-3 text-green-700 bg-green-100 hover:bg-green-200 rounded-lg font-medium"
+                  >
+                    <UserIcon className="w-5 h-5 mr-3" />
+                    {getDashboardName(userData.role)}
+                  </button>
+                  
+                  {/* Mobile Profile Actions */}
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsMobileOpen(false)}
+                    className="flex items-center px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg"
+                  >
+                    <UserIcon className="w-5 h-5 mr-3" />
+                    View Profile
+                  </Link>
+                  
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsMobileOpen(false);
+                    }}
+                    className="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg"
+                  >
+                    <ArrowRightStartOnRectangleIcon className="w-5 h-5 mr-3" />
+                    Logout
+                  </button>
                 </div>
               ) : (
-                <button onClick={() => { setShowLoginModal(true); setIsMobileOpen(false); }} className="w-full flex items-center justify-center bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 rounded-lg space-x-2">
+                <button 
+                  onClick={() => { 
+                    setShowLoginModal(true); 
+                    setIsMobileOpen(false); 
+                  }} 
+                  className="w-full flex items-center justify-center bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 rounded-lg space-x-2"
+                >
                   <UserIcon className="w-5 h-5" />
                   <span>Login</span>
                 </button>
@@ -330,8 +699,7 @@ const Header = () => {
   );
 };
 
-// Keep all the other components (LoginModal, PatientLogin, UserLogin, ForgotPassword, AppointmentModal) the same...
-
+// Keep all the existing modal components unchanged...
 const LoginModal = ({
   closeModal,
   loginRole,
@@ -369,11 +737,28 @@ const LoginModal = ({
         ) : null}
 
         {loginRole === "patient" && !showPatientReg && !showForgotPassword ? (
-          <PatientLogin onBack={() => setLoginRole(null)} setShowPatientReg={setShowPatientReg} setShowForgotPassword={setShowForgotPassword} />
+          <PatientLogin 
+            onBack={() => setLoginRole(null)} 
+            setShowPatientReg={setShowPatientReg} 
+            setShowForgotPassword={setShowForgotPassword}
+            username={username}
+            setUsername={setUsername}
+            password={password}
+            setPassword={setPassword}
+            handlePatientLogin={handlePatientLogin}
+          />
         ) : null}
 
         {loginRole !== "patient" && loginRole && !showPatientReg && !showForgotPassword ? (
-          <UserLogin role={loginRole} onBack={() => setLoginRole(null)} />
+          <UserLogin 
+            role={loginRole} 
+            onBack={() => setLoginRole(null)}
+            username={username}
+            setUsername={setUsername}
+            password={password}
+            setPassword={setPassword}
+            handleUserLogin={handleUserLogin}
+          />
         ) : null}
 
         {showPatientReg ? (
@@ -384,28 +769,50 @@ const LoginModal = ({
         ) : null}
 
         {showForgotPassword ? (
-          <ForgotPassword setShowForgotPassword={setShowForgotPassword} />
+          <ForgotPassword 
+            setShowForgotPassword={setShowForgotPassword}
+            forgotEmail={forgotEmail}
+            setForgotEmail={setForgotEmail}
+            handleForgotPasswordSubmit={handleForgotPasswordSubmit}
+          />
         ) : null}
       </div>
     </div>
   );
 };
 
-const PatientLogin = ({ onBack, setShowPatientReg, setShowForgotPassword }) => {
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    alert(`Patient logged in as ${username}`);
-  };
+const PatientLogin = ({ 
+  onBack, 
+  setShowPatientReg, 
+  setShowForgotPassword, 
+  username, 
+  setUsername, 
+  password, 
+  setPassword, 
+  handlePatientLogin 
+}) => {
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 relative">
+    <form onSubmit={handlePatientLogin} className="space-y-4 relative">
       <button type="button" className="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onClick={onBack}>← Back</button>
       <h3 className="text-lg font-semibold text-center">Patient Login</h3>
       <label className="block text-base font-medium mb-1">Username</label>
-      <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} required className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" />
+      <input 
+        type="text" 
+        placeholder="Username (try: john.doe)" 
+        value={username} 
+        onChange={e => setUsername(e.target.value)} 
+        required 
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" 
+      />
       <label className="block text-base font-medium mb-1">Password</label>
-      <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" />
+      <input 
+        type="password" 
+        placeholder="Password" 
+        value={password} 
+        onChange={e => setPassword(e.target.value)} 
+        required 
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" 
+      />
       <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-md font-semibold">Login</button>
       <div className="flex justify-between mt-2 text-sm">
         <button type="button" className="text-green-600 hover:underline" onClick={() => setShowPatientReg(true)}>New Patient? Register</button>
@@ -415,39 +822,61 @@ const PatientLogin = ({ onBack, setShowPatientReg, setShowForgotPassword }) => {
   );
 };
 
-const UserLogin = ({ role, onBack }) => {
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    alert(`${role.charAt(0).toUpperCase() + role.slice(1)} logged in as ${username}`);
-  };
+const UserLogin = ({ 
+  role, 
+  onBack, 
+  username, 
+  setUsername, 
+  password, 
+  setPassword, 
+  handleUserLogin 
+}) => {
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 relative">
+    <form onSubmit={handleUserLogin} className="space-y-4 relative">
       <button type="button" className="absolute top-4 right-4 text-gray-600 hover:text-gray-900" onClick={onBack}>← Back</button>
       <h3 className="text-lg font-semibold text-center">{role.charAt(0).toUpperCase() + role.slice(1)} Login</h3>
       <label className="block text-base font-medium mb-1">Username</label>
-      <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} required className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" />
+      <input 
+        type="text" 
+        placeholder={`Username (try: ${role === 'doctor' ? 'dr.priya' : 'admin'})`}
+        value={username} 
+        onChange={e => setUsername(e.target.value)} 
+        required 
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" 
+      />
       <label className="block text-base font-medium mb-1">Password</label>
-      <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" />
+      <input 
+        type="password" 
+        placeholder="Password" 
+        value={password} 
+        onChange={e => setPassword(e.target.value)} 
+        required 
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" 
+      />
       <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-md font-semibold">Login</button>
     </form>
   );
 };
 
-const ForgotPassword = ({ setShowForgotPassword }) => {
-  const [email, setEmail] = React.useState("");
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    alert(`Password reset link sent to ${email}`);
-    setShowForgotPassword(false);
-  };
+const ForgotPassword = ({ 
+  setShowForgotPassword, 
+  forgotEmail, 
+  setForgotEmail, 
+  handleForgotPasswordSubmit 
+}) => {
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 relative">
+    <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 relative">
       <button type="button" className="absolute top-4 right-4 text-gray-600 hover:text-gray-900" onClick={() => setShowForgotPassword(false)}>← Back</button>
       <h3 className="text-xl font-semibold text-center mb-6">Forgot Password</h3>
       <label className="block mb-1">Email</label>
-      <input type="email" placeholder="Your registered email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" />
+      <input 
+        type="email" 
+        placeholder="Your registered email" 
+        value={forgotEmail} 
+        onChange={e => setForgotEmail(e.target.value)} 
+        required 
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" 
+      />
       <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-md font-semibold">Send Reset Link</button>
     </form>
   );

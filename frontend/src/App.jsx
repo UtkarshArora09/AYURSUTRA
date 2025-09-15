@@ -13,8 +13,10 @@ import PanchakarmaBooking from './pages/PanchakarmaBooking';
 import PanchakarmaReschedule from './pages/PanchakarmaReschedule';
 import JoinQueue from './pages/JoinQueue';
 import QueueRescheduleCancel from './components/QueueRescheduleCancel';
+import QueueTrends from './pages/QueueTrends';
+import DoctorDashboard from './components/DoctorDashboard';
 import PatientDashboard from './components/PatientDashboard';
-import QueueTrends from './queuetrends';
+
 function App() {
   return (
     <Router>
@@ -47,9 +49,11 @@ function App() {
             <Route path="/appointments/general/reschedule" element={<QueueRescheduleCancel />} />
 
             {/* Queue Routes */}
-            <Route path="/queue" element={<JoinQueue />} />
+            <Route path="/queue" element={<QueueTrends />} />
             <Route path="/dashboard" element={<PatientDashboard/>}/>
             <Route path="/queuetrends" element={<QueueTrends />} />
+            <Route path="/patient-dashboard" element={<PatientDashboard />} />
+<Route path="/doctor-dashboard" element={<DoctorDashboard />} />
 
             {/* 404 catch-all */}
             <Route
