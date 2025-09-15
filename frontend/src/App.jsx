@@ -14,7 +14,7 @@ import PanchakarmaReschedule from './pages/PanchakarmaReschedule';
 import JoinQueue from './pages/JoinQueue';
 import QueueRescheduleCancel from './components/QueueRescheduleCancel';
 import PatientDashboard from './components/PatientDashboard';
-
+import QueueTrends from './queuetrends';
 function App() {
   return (
     <Router>
@@ -49,6 +49,7 @@ function App() {
             {/* Queue Routes */}
             <Route path="/queue" element={<JoinQueue />} />
             <Route path="/dashboard" element={<PatientDashboard/>}/>
+            <Route path="/queuetrends" element={<QueueTrends />} />
 
             {/* 404 catch-all */}
             <Route

@@ -74,7 +74,7 @@ const Header = () => {
         },
       ],
     },
-    { name: "Queue", href: "/queue" },
+    { name: "Queue", href: "/queuetrends" },
     { name: "Dashboard", href: "/dashboard" },
     { name: "Reports", href: "/reports" },
   ];
