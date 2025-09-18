@@ -3,9 +3,9 @@ const bcrypt = require("bcryptjs");
 const db = require("./config/db"); // your database connection
 
 async function createAdmin() {
-  const name = "Super Admin";
-  const email = "admin@example.com";
-  const password = "admin123"; // plain password
+  const name = "AyurAdmin";
+  const email = "adayur108@gmail.com";
+  const password = "@Ayadmin123"; // plain password
   const role = "admin";
 
   // Hash the password

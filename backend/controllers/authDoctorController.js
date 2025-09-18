@@ -2,48 +2,6 @@ const Doctor = require("../models/doctorModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// // Register a new doctor
-// exports.registerDoctor = async (req, res) => {
-//   try {
-//     const {
-//       name,
-//       email,
-//       password,
-//       phone,
-//       specialization,
-//       experience_years,
-//       qualification,
-//       clinic_address,
-//     } = req.body;
-
-//     // Check if email already exists
-//     const existing = await Doctor.findByEmail(email);
-//     if (existing)
-//       return res.status(400).json({ message: "Email already registered" });
-
-//     // Hash password
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     const newDoctor = await Doctor.create({
-//       name,
-//       email,
-//       password: hashedPassword,
-//       phone,
-//       specialization,
-//       experience_years,
-//       qualification,
-//       clinic_address,
-//     });
-
-//     res
-//       .status(201)
-//       .json({ message: "Doctor registered successfully", doctor: newDoctor });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-//  Login doctor
 exports.loginDoctor = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -57,13 +15,22 @@ exports.loginDoctor = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
 
     const token = jwt.sign(
-      { id: doctor.id, role: "doctor" },
+      { id: doctor.doctor_id, role: "doctor" },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    res.json({ token, doctor });
+    // Simple object with only the fields you need
+    const doctorData = {
+      id: doctor.doctor_id,
+      name: doctor.name, // just use the name from DB
+      email: doctor.email,
+      role: "doctor",
+    };
+
+    res.status(200).json({ token, user: doctorData });
   } catch (err) {
+    console.error("Doctor login error:", err);
     res.status(500).json({ error: err.message });
   }
 };

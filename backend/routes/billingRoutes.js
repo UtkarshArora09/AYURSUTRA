@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const billingController = require("../controllers/billingController"); // make sure path is correct
+const billingController = require("../controllers/billingController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
-// GET all billings — accessible by doctor or patient
+// GET all billings — doctor or patient
 router.get(
   "/",
   protect,
@@ -11,7 +11,7 @@ router.get(
   billingController.findAll
 );
 
-// GET billing by id
+// GET billing by ID
 router.get(
   "/:id",
   protect,
@@ -19,7 +19,7 @@ router.get(
   billingController.findById
 );
 
-// CREATE billing — usually doctor or admin
+// CREATE billing — doctor only
 router.post("/", protect, authorize("doctor"), billingController.create);
 
 // UPDATE billing

@@ -12,20 +12,32 @@ import PatientRegistration from "../../components/PatientRegistration/PatientReg
 
 const Header = () => {
   const navigate = useNavigate();
-
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
-
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // User data state
-  const [userData, setUserData] = useState({
-    name: "",
-    role: "",
-    email: "",
-    avatar: ""
+  const [userData, setUserData] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ayursutra_user");
+      if (saved && saved !== "undefined") {
+        const parsed = JSON.parse(saved);
+        // verify fields
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          parsed.role &&
+          parsed.email
+        ) {
+          return parsed;
+        }
+      }
+    } catch (err) {
+      console.error("Error parsing saved user data:", err);
+    }
+    return null;
   });
 
   // Profile dropdown state
@@ -40,36 +52,29 @@ const Header = () => {
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedAppointmentType, setSelectedAppointmentType] = useState(null);
 
-  // Login input states
-  const [username, setUsername] = useState("");
+  // Input states
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [forgotEmail, setForgotEmail] = useState("");
 
   // Check for existing login on component mount
   useEffect(() => {
-    const checkAuthStatus = () => {
-      const savedUser = localStorage.getItem('ayursutra_user');
-      if (savedUser) {
-        try {
-          const user = JSON.parse(savedUser);
-          setUserData(user);
-          setIsLoggedIn(true);
-        } catch (error) {
-          console.error('Error parsing saved user data:', error);
-          localStorage.removeItem('ayursutra_user');
-        }
-      }
-    };
-
-    checkAuthStatus();
-  }, []);
+    if (userData && userData.role) {
+      setIsLoggedIn(true);
+    } else {
+      setIsLoggedIn(false);
+    }
+  }, [userData]);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Disable body scroll when modal open
   useEffect(() => {
     if (showLoginModal || showAppointmentModal) {
       document.body.style.overflow = "hidden";
@@ -81,82 +86,83 @@ const Header = () => {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showProfileDropdown && !event.target.closest('.profile-dropdown')) {
+      if (showProfileDropdown && !event.target.closest(".profile-dropdown")) {
         setShowProfileDropdown(false);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showProfileDropdown]);
 
   // Generate user initials
   const getInitials = (name) => {
-    if (!name) return 'U';
+    if (!name) return "U";
     return name
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase())
+      .split(" ")
+      .map((w) => w.charAt(0).toUpperCase())
       .slice(0, 2)
-      .join('');
+      .join("");
   };
 
   // Get role-based background color for avatar
   const getRoleColor = (role) => {
-    switch (role.toLowerCase()) {
-      case 'doctor':
-        return 'from-blue-500 to-blue-600';
-      case 'admin':
-        return 'from-purple-500 to-purple-600';
-      case 'patient':
-        return 'from-green-500 to-green-600';
+    switch (role?.toLowerCase()) {
+      case "doctor":
+        return "from-blue-500 to-blue-600";
+      case "admin":
+        return "from-purple-500 to-purple-600";
+      case "patient":
+        return "from-green-500 to-green-600";
       default:
-        return 'from-gray-500 to-gray-600';
+        return "from-gray-500 to-gray-600";
     }
   };
 
   // Get role-based dashboard route
-  const getDashboardRoute = (role) => {
-    switch (role.toLowerCase()) {
-      case 'doctor':
-        return '/doctor-dashboard';
-      case 'admin':
-        return '/admin-dashboard';
-      case 'patient':
-        return '/patient-dashboard';
+  const getDashboardName = (role) => {
+    switch (role?.toLowerCase()) {
+      case "doctor":
+        return "Doctor Dashboard";
+      case "admin":
+        return "Admin Dashboard";
+      case "patient":
+        return "Patient Dashboard";
       default:
-        return '/dashboard';
+        return "Dashboard";
     }
   };
 
   // Get role-based dashboard name
-  const getDashboardName = (role) => {
-    switch (role.toLowerCase()) {
-      case 'doctor':
-        return 'Doctor Dashboard';
-      case 'admin':
-        return 'Admin Dashboard';
-      case 'patient':
-        return 'Patient Dashboard';
+  const getDashboardRoute = (role) => {
+    switch (role?.toLowerCase()) {
+      case "doctor":
+        return "/doctor-dashboard";
+      case "admin":
+        return "/admin-dashboard";
+      case "patient":
+        return "/patient-dashboard";
       default:
-        return 'Dashboard';
+        return "/dashboard";
     }
   };
 
   // Handle dashboard navigation based on user role
   const handleDashboardClick = () => {
-    if (isLoggedIn && userData.role) {
-      const dashboardRoute = getDashboardRoute(userData.role);
-      navigate(dashboardRoute);
+    if (isLoggedIn && userData?.role) {
+      navigate(getDashboardRoute(userData.role));
     } else {
       // If not logged in, redirect to general dashboard or show login
-      navigate('/dashboard');
+      navigate("/dashboard");
     }
   };
 
   // Navigation items with conditional dashboard
   const getNavItems = () => {
+    const dashboardName =
+      isLoggedIn && userData?.role
+        ? getDashboardName(userData.role)
+        : "Dashboard";
+
     const baseItems = [
       { name: "Home", href: "/" },
       {
@@ -184,36 +190,29 @@ const Header = () => {
         ],
       },
       { name: "Queue", href: "/queue" },
-      { 
-        name: isLoggedIn ? getDashboardName(userData.role) : "Dashboard", 
+      {
+        name: dashboardName,
         href: "#",
-        action: handleDashboardClick
+        action: handleDashboardClick,
       },
       { name: "Reports", href: "/reports" },
     ];
 
     // Filter navigation items based on user role
-    if (isLoggedIn && userData.role) {
-      switch (userData.role.toLowerCase()) {
-        case 'patient':
-          // Patient sees limited navigation
-          return baseItems.filter(item => 
-            ['Home', 'Appointments', 'Queue', 'Patient Dashboard', 'Reports'].includes(item.name)
-          );
-        
-        case 'doctor':
-          // Doctor sees all items
-          return baseItems;
-        
-        case 'admin':
-          // Admin sees all items
-          return baseItems;
-        
-        default:
-          return baseItems;
+    if (isLoggedIn && userData?.role) {
+      const roleLower = userData.role.toLowerCase();
+      if (roleLower === "patient") {
+        // Patient sees limited navigation
+        return baseItems.filter((item) =>
+          ["Home", "Appointments", "Queue", dashboardName, "Reports"].includes(
+            item.name
+          )
+        );
+      } else if (roleLower === "doctor" || roleLower === "admin") {
+        return baseItems;
       }
     }
-    
+
     return baseItems;
   };
 
@@ -225,7 +224,7 @@ const Header = () => {
     setShowPatientReg(false);
     setShowForgotPassword(false);
     setLoginRole(null);
-    setUsername("");
+    setEmail("");
     setPassword("");
     setForgotEmail("");
     closeAppointmentModal();
@@ -235,7 +234,6 @@ const Header = () => {
     setSelectedAppointmentType(type);
     setShowAppointmentModal(true);
   };
-
   const closeAppointmentModal = () => {
     setShowAppointmentModal(false);
     setSelectedAppointmentType(null);
@@ -245,70 +243,182 @@ const Header = () => {
   const handleAppointmentAction = (action) => {
     if (selectedAppointmentType === "Panchakarma") {
       if (action === "Booking") navigate("/appointments/panchakarma/booking");
-      else if (action === "Reschedule/Cancel") navigate("/appointments/panchakarma/reschedule");
+      else if (action === "Reschedule/Cancel")
+        navigate("/appointments/panchakarma/reschedule");
     } else if (selectedAppointmentType === "General Appointment") {
       if (action === "Booking") navigate("/queue/join");
-      else if (action === "Reschedule/Cancel") navigate("/queue/reschedule-cancel");
+      else if (action === "Reschedule/Cancel")
+        navigate("/queue/reschedule-cancel");
     }
     closeAppointmentModal();
   };
 
   // Updated login handlers with user data storage
-  const handlePatientLogin = (e) => {
+  const handlePatientLogin = async (e) => {
     e.preventDefault();
-    
-    const user = {
-      name: username === "john.doe" ? "John Doe" : username.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      role: "Patient",
-      email: `${username}@email.com`,
-      avatar: ""
-    };
 
-    localStorage.setItem('ayursutra_user', JSON.stringify(user));
-    setUserData(user);
-    setIsLoggedIn(true);
-    
-    alert(`Patient logged in as ${user.name}`);
-    closeModal();
+    if (!email || !password) {
+      alert("Email or password missing");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/api/patients/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Patient login failed");
+
+      console.log("Login success:", data);
+
+      // Build full name safely from first_name and last_name
+      const fullName =
+        (data.patient.first_name || "").trim() +
+        " " +
+        (data.patient.last_name || "").trim();
+
+      // Construct user object for frontend
+      const user = {
+        ...data.patient,
+        name: fullName,
+      };
+
+      // Save to localStorage
+      localStorage.setItem("ayursutra_user", JSON.stringify(user));
+      localStorage.setItem("auth_token", data.token);
+
+      setUserData(user);
+      setIsLoggedIn(true);
+      alert(`Logged in as ${user.name} (${user.role})`);
+      closeModal();
+    } catch (err) {
+      console.error("Patient login error:", err);
+      alert("Login failed: " + err.message);
+    }
   };
 
-  const handleUserLogin = (e) => {
+  const handleUserLogin = async (e) => {
     e.preventDefault();
-    
-    const user = {
-      name: username === "dr.priya" ? "Dr. Priya Sharma" : 
-            username === "admin" ? "Admin User" :
-            username.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      role: loginRole.charAt(0).toUpperCase() + loginRole.slice(1),
-      email: `${username}@ayursutra.com`,
-      avatar: ""
-    };
 
-    localStorage.setItem('ayursutra_user', JSON.stringify(user));
-    setUserData(user);
-    setIsLoggedIn(true);
-    
-    alert(`${user.role} logged in as ${user.name}`);
-    closeModal();
+    // Basic validations
+    if (!email || !email.includes("@")) {
+      alert("Please enter a valid email.");
+      return;
+    }
+
+    if (!loginRole) {
+      alert("Please select a role.");
+      return;
+    }
+
+    const roleStr = loginRole || "";
+
+    try {
+      // Determine backend endpoint based on role
+      let endpoint = "";
+      if (roleStr.toLowerCase() === "doctor") {
+        endpoint = "/api/doctors/auth/login";
+      } else if (roleStr.toLowerCase() === "admin") {
+        endpoint = "/api/admin/auth/login";
+      } else if (roleStr.toLowerCase() === "patient") {
+        endpoint = "/api/patients/auth/login";
+      } else {
+        throw new Error("Invalid role selected");
+      }
+
+      const baseURL = "http://localhost:5000"; // adjust if your backend URL is different
+
+      // Make POST request to backend
+      const response = await fetch(baseURL + endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || "Login failed");
+      }
+
+      const data = await response.json();
+
+      // Safely construct full name
+      const fullName =
+        `${data.user?.first_name || data.user?.name || ""} ${
+          data.user?.last_name || ""
+        }`.trim() ||
+        data.user?.email ||
+        "User";
+
+      // Ensure role is properly capitalized
+      const userDataSafe = {
+        ...data.user,
+        name: fullName,
+        role: data.user?.role
+          ? data.user.role.charAt(0).toUpperCase() + data.user.role.slice(1)
+          : roleStr.charAt(0).toUpperCase() + roleStr.slice(1),
+      };
+
+      // Save to localStorage
+      localStorage.setItem("ayursutra_user", JSON.stringify(userDataSafe));
+      localStorage.setItem("auth_token", data.token);
+
+      // Update state
+      setUserData(userDataSafe);
+
+      alert(`Logged in as ${userDataSafe.name} (${userDataSafe.role})`);
+      closeModal();
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Login failed: " + error.message);
+    }
   };
 
-  const handleForgotPasswordSubmit = (e) => {
+  const handleForgotPasswordSubmit = async (e) => {
     e.preventDefault();
-    alert(`Password reset link sent to ${forgotEmail}`);
-    setShowForgotPassword(false);
-    setForgotEmail("");
+
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/patients/auth/forgot-password",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: forgotEmail }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(data.message); // e.g., "Password reset link sent to your email"
+      } else {
+        alert(data.error || data.message || "Something went wrong");
+      }
+    } catch (error) {
+      console.error("Forgot Password Error:", error);
+      alert("Failed to send reset link. Please try again later.");
+    } finally {
+      setShowForgotPassword(false);
+      setForgotEmail("");
+    }
   };
 
   // Logout handler
   const handleLogout = () => {
-    localStorage.removeItem('ayursutra_user');
-    setUserData({ name: "", role: "", email: "", avatar: "" });
+    localStorage.removeItem("ayursutra_user");
+    setUserData(null);
     setIsLoggedIn(false);
     setShowProfileDropdown(false);
-    
-    navigate('/');
-    
-    alert('You have been logged out successfully');
+    navigate("/");
+    alert("Logged out successfully");
   };
 
   // Dropdown hover control
@@ -317,83 +427,113 @@ const Header = () => {
 
   return (
     <>
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out ${isScrolled ? "bg-white/95 backdrop-blur-lg shadow-lg border-b border-green-100" : "bg-gradient-to-r from-green-50 to-emerald-50 shadow-sm"}`}>
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out ${
+          isScrolled
+            ? "bg-white/95 backdrop-blur-lg shadow-lg border-b border-green-100"
+            : "bg-gradient-to-r from-green-50 to-emerald-50 shadow-sm"
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-18 lg:h-20">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-3 cursor-pointer flex-shrink-0">
-              <div className="relative">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                  <img src="/assets/logo.jpg" alt="AyurSutra Logo" className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10" onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "inline"; }} />
-                  <span className="text-white font-bold text-lg hidden">🕉️</span>
+            <Link to="/" className="flex items-center space-x-3 flex-shrink-0">
+              <div className="relative group">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                  <img
+                    src="/assets/logo.jpg"
+                    alt="Logo"
+                    className="w-8 h-8 object-contain"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
                 </div>
-                <div className="absolute -inset-1 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl blur opacity-0 group-hover:opacity-30"></div>
               </div>
               <div className="hidden sm:block">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-emerald-700">
                   AyurSutra
                 </h1>
-                <p className="text-xs text-gray-600 -mt-1">Ayurvedic Wellness Platform</p>
               </div>
             </Link>
 
-            {/* Navigation */}
-            <nav className="hidden lg:flex items-center space-x-1">
+            {/* Navigation  */}
+            <nav className="hidden lg:flex items-center space-x-4">
               {navItems.map((item) =>
                 item.dropdown ? (
-                  <div key={item.name} className="relative group" onMouseEnter={() => handleMouseEnter(item.name)} onMouseLeave={handleMouseLeave}>
-                    <button className="flex items-center space-x-1 px-3 py-2 text-gray-700 hover:text-green-600 font-medium rounded-lg hover:bg-green-50 transition-all duration-300">
+                  <div
+                    key={item.name}
+                    className="relative group"
+                    onMouseEnter={() => handleMouseEnter(item.name)}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    <button className="flex items-center space-x-1 px-3 py-2 rounded-lg hover:bg-green-50 hover:text-green-600">
                       <span>{item.name}</span>
-                      <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${activeDropdown === item.name ? "rotate-180" : ""}`} />
+                      <ChevronDownIcon
+                        className={`w-4 h-4 transition-transform ${
+                          activeDropdown === item.name ? "rotate-180" : ""
+                        }`}
+                      />
                     </button>
-                    <div className={`absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 ${activeDropdown === item.name ? "opacity-100 translate-y-0 visible" : "opacity-0 translate-y-4 invisible"}`}>
+                    <div
+                      className={`absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 ${
+                        activeDropdown === item.name
+                          ? "opacity-100 translate-y-0 visible"
+                          : "opacity-0 translate-y-4 invisible"
+                      }`}
+                    >
                       <div className="p-2">
-                        {item.dropdown.map((sub) => (
+                        {item.dropdown.map((sub) =>
                           sub.action ? (
                             <button
                               key={sub.name}
                               onClick={(e) => {
                                 e.preventDefault();
-                                if (sub.action) sub.action();
+                                sub.action();
                                 setActiveDropdown(null);
                               }}
-                              className="w-full text-left px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-xl flex items-center"
+                              className="w-full text-left px-4 py-3 rounded-xl hover:bg-green-50 hover:text-green-600"
                             >
-                              {sub.icon && <span className="mr-2 text-lg">{sub.icon}</span>}
-                              <span>{sub.name}</span>
+                              {sub.icon && (
+                                <span className="mr-2">{sub.icon}</span>
+                              )}
+                              {sub.name}
                             </button>
                           ) : (
                             <Link
                               key={sub.name}
                               to={sub.href}
-                              className="w-full px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-xl flex items-center"
                               onClick={() => setActiveDropdown(null)}
+                              className="block px-4 py-3 rounded-xl hover:bg-green-50 hover:text-green-600"
                             >
-                              {sub.icon && <span className="mr-2 text-lg">{sub.icon}</span>}
-                              <span>{sub.name}</span>
+                              {sub.icon && (
+                                <span className="mr-2">{sub.icon}</span>
+                              )}
+                              {sub.name}
                             </Link>
                           )
-                        ))}
+                        )}
                       </div>
                     </div>
                   </div>
                 ) : item.action ? (
-                  <button 
-                    key={item.name} 
+                  <button
+                    key={item.name}
                     onClick={item.action}
-                    className={`px-3 py-2 font-medium rounded-lg transition-all duration-300 ${
-                      isLoggedIn && item.name.includes('Dashboard') 
-                        ? 'text-green-600 bg-green-50 hover:bg-green-100' 
-                        : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
+                    className={`px-3 py-2 rounded-lg hover:bg-green-50 hover:text-green-600 ${
+                      isLoggedIn &&
+                      item.name === getDashboardName(userData?.role)
+                        ? "text-green-600 bg-green-50"
+                        : "text-gray-700"
                     }`}
                   >
                     {item.name}
                   </button>
                 ) : (
-                  <Link 
-                    key={item.name} 
-                    to={item.href} 
-                    className="px-3 py-2 text-gray-700 hover:text-green-600 font-medium rounded-lg hover:bg-green-50 transition-all duration-300"
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="px-3 py-2 rounded-lg hover:bg-green-50 hover:text-green-600 text-gray-700"
                   >
                     {item.name}
                   </Link>
@@ -404,48 +544,51 @@ const Header = () => {
             {/* Login/Profile */}
             <div className="flex items-center space-x-3">
               {/* Notifications */}
-              <button className="hidden sm:flex p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+              <button className="hidden sm:flex p-2 rounded-lg hover:bg-green-50 hover:text-green-600">
                 <BellIcon className="w-5 h-5" />
               </button>
-
               {/* User Profile or Login */}
-              {isLoggedIn ? (
-                <div className="hidden sm:flex items-center space-x-3 profile-dropdown relative">
+              {isLoggedIn && userData ? (
+                <div className="relative flex items-center space-x-3 profile-dropdown">
                   {/* User Avatar with Initials */}
-                  <div 
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${getRoleColor(userData.role)} flex items-center justify-center text-white font-bold text-sm cursor-pointer ring-2 ring-green-200 hover:ring-green-300 transition-all`}
+                  <div
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${getRoleColor(
+                      userData.role
+                    )} flex items-center justify-center text-white font-bold cursor-pointer`}
                     onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                   >
                     {userData.avatar ? (
-                      <img 
-                        src={userData.avatar} 
-                        alt={userData.name} 
+                      <img
+                        src={userData.avatar}
+                        alt={userData.name}
                         className="w-full h-full rounded-full object-cover"
                       />
                     ) : (
                       getInitials(userData.name)
                     )}
                   </div>
-
                   {/* User Name and Role */}
-                  <div 
-                    className="cursor-pointer hover:text-green-600 transition-colors"
+                  <div
                     onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                    className="cursor-pointer"
                   >
-                    <p className="text-gray-800 font-medium text-sm leading-tight">{userData.name}</p>
-                    <p className="text-gray-500 text-xs">{userData.role}</p>
+                    <p className="text-sm font-medium">{userData.name}</p>
+                    <p className="text-xs text-gray-500">{userData.role}</p>
                   </div>
-
                   {/* Profile Dropdown */}
                   {showProfileDropdown && (
-                    <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
-                      <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50">
+                    <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 z-50">
+                      <div className="p-4 border-b border-gray-100 bg-green-50">
                         <div className="flex items-center space-x-3">
-                          <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${getRoleColor(userData.role)} flex items-center justify-center text-white font-bold`}>
+                          <div
+                            className={`w-12 h-12 rounded-full bg-gradient-to-br ${getRoleColor(
+                              userData.role
+                            )} flex items-center justify-center text-white font-bold`}
+                          >
                             {userData.avatar ? (
-                              <img 
-                                src={userData.avatar} 
-                                alt={userData.name} 
+                              <img
+                                src={userData.avatar}
+                                alt={userData.name}
                                 className="w-full h-full rounded-full object-cover"
                               />
                             ) : (
@@ -453,13 +596,17 @@ const Header = () => {
                             )}
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-800">{userData.name}</p>
-                            <p className="text-sm text-gray-600">{userData.role}</p>
-                            <p className="text-xs text-gray-500">{userData.email}</p>
+                            <p className="font-semibold">{userData.name}</p>
+                            <p className="text-sm text-gray-600">
+                              {userData.role}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {userData.email}
+                            </p>
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="p-2">
                         {/* Role-based Dashboard Link */}
                         <button
@@ -467,202 +614,207 @@ const Header = () => {
                             handleDashboardClick();
                             setShowProfileDropdown(false);
                           }}
-                          className="w-full px-4 py-3 text-green-700 hover:text-green-800 hover:bg-green-50 rounded-xl flex items-center font-medium"
+                          className="flex items-center w-full px-4 py-3 hover:bg-green-50 rounded-xl text-green-700"
                         >
                           <UserIcon className="w-5 h-5 mr-3" />
                           {getDashboardName(userData.role)}
                         </button>
-                        
                         <Link
                           to="/profile"
-                          className="w-full px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-xl flex items-center"
                           onClick={() => setShowProfileDropdown(false)}
+                          className="flex items-center w-full px-4 py-3 rounded-xl hover:bg-green-50 text-gray-700"
                         >
                           <UserIcon className="w-5 h-5 mr-3" />
                           View Profile
                         </Link>
-                        
-                        <Link
-                          to="/settings"
-                          className="w-full px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-xl flex items-center"
-                          onClick={() => setShowProfileDropdown(false)}
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center w-full px-4 py-3 rounded-xl hover:bg-red-50 text-red-600"
                         >
-                          <BellIcon className="w-5 h-5 mr-3" />
-                          Settings
-                        </Link>
-                        
-                        <div className="border-t border-gray-100 mt-2 pt-2">
-                          <button
-                            onClick={handleLogout}
-                            className="w-full px-4 py-3 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl flex items-center font-medium"
-                          >
-                            <ArrowRightStartOnRectangleIcon className="w-5 h-5 mr-3" />
-                            Logout
-                          </button>
-                        </div>
+                          <ArrowRightStartOnRectangleIcon className="w-5 h-5 mr-3" />
+                          Logout
+                        </button>
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
-                <button 
-                  onClick={() => setShowLoginModal(true)} 
-                  className="hidden sm:flex bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-xl font-medium transition-all"
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className="hidden sm:flex px-4 py-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white"
                 >
-                  <UserIcon className="w-4 h-4 mr-1" />
+                  <UserIcon className="w-4 h-4 mr-2" />
                   Login
                 </button>
               )}
 
               {/* Mobile Menu Toggle */}
-              <button 
-                onClick={() => setIsMobileOpen(!isMobileOpen)} 
-                className="lg:hidden p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
-                aria-label="Toggle mobile menu"
+              <button
+                onClick={() => setIsMobileOpen(!isMobileOpen)}
+                className="lg:hidden p-2 rounded-lg hover:bg-green-50 hover:text-green-600"
               >
-                {isMobileOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+                {isMobileOpen ? (
+                  <XMarkIcon className="w-6 h-6" />
+                ) : (
+                  <Bars3Icon className="w-6 h-6" />
+                )}
               </button>
             </div>
           </div>
         </div>
 
         {/* Mobile menu */}
-        <div className={`lg:hidden transition-all duration-300 overflow-hidden border-t border-gray-200 shadow-lg bg-white ${isMobileOpen ? "max-h-screen opacity-100" : "max-h-0 opacity-0"}`}>
-          <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
-            {navItems.map((item) => (
-              <div key={item.name}>
-                {item.dropdown ? (
-                  <>
-                    <button onClick={() => setActiveDropdown(activeDropdown === item.name ? null : item.name)} className="flex justify-between px-4 py-3 w-full text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg">
+        {isMobileOpen && (
+          <div className="lg:hidden bg-white border-t border-gray-200 shadow-lg">
+            <div className="p-4 space-y-2">
+              {navItems.map((item) => (
+                <div key={item.name}>
+                  {item.dropdown ? (
+                    <>
+                      <button
+                        onClick={() =>
+                          setActiveDropdown(
+                            activeDropdown === item.name ? null : item.name
+                          )
+                        }
+                        className="w-full flex justify-between px-4 py-3 rounded-lg hover:bg-green-50 hover:text-green-600 text-gray-700"
+                      >
+                        {item.name}
+                        <ChevronDownIcon
+                          className={`w-5 h-5 ${
+                            activeDropdown === item.name ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+                      <div
+                        className={`${
+                          activeDropdown === item.name
+                            ? "max-h-64 opacity-100"
+                            : "max-h-0 opacity-0"
+                        } overflow-hidden transition-all`}
+                      >
+                        {item.dropdown.map((sub) =>
+                          sub.action ? (
+                            <button
+                              key={sub.name}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                sub.action();
+                                setIsMobileOpen(false);
+                              }}
+                              className="w-full px-6 py-2 rounded-lg text-left hover:bg-green-50 text-gray-700"
+                            >
+                              {sub.icon} {sub.name}
+                            </button>
+                          ) : (
+                            <Link
+                              key={sub.name}
+                              to={sub.href}
+                              onClick={() => setIsMobileOpen(false)}
+                              className="block px-6 py-2 rounded-lg hover:bg-green-50 text-gray-700"
+                            >
+                              {sub.icon} {sub.name}
+                            </Link>
+                          )
+                        )}
+                      </div>
+                    </>
+                  ) : item.action ? (
+                    <button
+                      key={item.name}
+                      onClick={() => {
+                        item.action();
+                        setIsMobileOpen(false);
+                      }}
+                      className="w-full px-4 py-3 rounded-lg hover:bg-green-50 hover:text-green-600 text-gray-700"
+                    >
                       {item.name}
-                      <ChevronDownIcon className={`w-5 h-5 transition-transform duration-300 ${activeDropdown === item.name ? "rotate-180" : ""}`} />
                     </button>
-                    <div className={`overflow-hidden transition-all duration-300 ${activeDropdown === item.name ? "max-h-48 opacity-100" : "max-h-0 opacity-0"}`}>
-                      {item.dropdown.map((sub) => (
-                        sub.action ? (
-                          <button 
-                            key={sub.name} 
-                            onClick={(e) => { 
-                              e.preventDefault(); 
-                              if (sub.action) { 
-                                sub.action(); 
-                                setIsMobileOpen(false); 
-                              } 
-                            }} 
-                            className="block px-6 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg w-full text-left"
-                          >
-                            {sub.icon} {sub.name}
-                          </button>
+                  ) : (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setIsMobileOpen(false)}
+                      className="block px-4 py-3 rounded-lg hover:bg-green-50 text-gray-700"
+                    >
+                      {item.name}
+                    </Link>
+                  )}
+                </div>
+              ))}
+              {/* Mobile User Section */}
+              <div className="border-t border-gray-200 pt-4">
+                {isLoggedIn && userData ? (
+                  <div className="space-y-2">
+                    {/* User Info */}
+                    <div className="flex items-center px-4 py-3 space-x-3 bg-green-50 rounded-lg">
+                      <div
+                        className={`w-10 h-10 rounded-full bg-gradient-to-br ${getRoleColor(
+                          userData.role
+                        )} flex items-center justify-center text-white font-bold`}
+                      >
+                        {userData.avatar ? (
+                          <img
+                            src={userData.avatar}
+                            alt={userData.name}
+                            className="w-full h-full rounded-full object-cover"
+                          />
                         ) : (
-                          <Link 
-                            key={sub.name} 
-                            to={sub.href} 
-                            onClick={() => setIsMobileOpen(false)} 
-                            className="block px-6 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg"
-                          >
-                            {sub.icon} {sub.name}
-                          </Link>
-                        )
-                      ))}
+                          getInitials(userData.name)
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold">{userData.name}</p>
+                        <p className="text-sm text-gray-600">{userData.role}</p>
+                      </div>
                     </div>
-                  </>
-                ) : item.action ? (
+                    {/* Mobile Dashboard Button */}
+                    <button
+                      onClick={() => {
+                        handleDashboardClick();
+                        setIsMobileOpen(false);
+                      }}
+                      className="w-full px-4 py-3 rounded-lg bg-green-100 text-green-700"
+                    >
+                      <UserIcon className="w-5 h-5 mr-2" />
+                      {getDashboardName(userData.role)}
+                    </button>
+                    {/* Mobile Profile Actions */}
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsMobileOpen(false)}
+                      className="flex items-center w-full px-4 py-3 rounded-lg hover:bg-green-50 text-gray-700"
+                    >
+                      <UserIcon className="w-5 h-5 mr-2" />
+                      View Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsMobileOpen(false);
+                      }}
+                      className="w-full px-4 py-3 rounded-lg text-red-600 hover:bg-red-50"
+                    >
+                      <ArrowRightStartOnRectangleIcon className="w-5 h-5 mr-2" />
+                      Logout
+                    </button>
+                  </div>
+                ) : (
                   <button
                     onClick={() => {
-                      item.action();
+                      setShowLoginModal(true);
                       setIsMobileOpen(false);
                     }}
-                    className={`block px-4 py-3 w-full text-left rounded-lg transition-all ${
-                      isLoggedIn && item.name.includes('Dashboard')
-                        ? 'text-green-600 bg-green-50 hover:bg-green-100 font-medium'
-                        : 'text-gray-700 hover:bg-green-50 hover:text-green-600'
-                    }`}
+                    className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white"
                   >
-                    {item.name}
+                    <UserIcon className="w-5 h-5 mr-2" />
+                    Login
                   </button>
-                ) : (
-                  <Link 
-                    to={item.href} 
-                    onClick={() => setIsMobileOpen(false)} 
-                    className="block px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg"
-                  >
-                    {item.name}
-                  </Link>
                 )}
               </div>
-            ))}
-
-            {/* Mobile User Section */}
-            <div className="border-t border-gray-200 pt-4">
-              {isLoggedIn ? (
-                <div className="space-y-2">
-                  {/* User Info */}
-                  <div className="flex items-center px-4 py-3 space-x-3 bg-green-50 rounded-lg">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getRoleColor(userData.role)} flex items-center justify-center text-white font-bold text-sm`}>
-                      {userData.avatar ? (
-                        <img 
-                          src={userData.avatar} 
-                          alt={userData.name} 
-                          className="w-full h-full rounded-full object-cover"
-                        />
-                      ) : (
-                        getInitials(userData.name)
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-800">{userData.name}</p>
-                      <p className="text-sm text-gray-600">{userData.role}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Mobile Dashboard Button */}
-                  <button
-                    onClick={() => {
-                      handleDashboardClick();
-                      setIsMobileOpen(false);
-                    }}
-                    className="w-full flex items-center px-4 py-3 text-green-700 bg-green-100 hover:bg-green-200 rounded-lg font-medium"
-                  >
-                    <UserIcon className="w-5 h-5 mr-3" />
-                    {getDashboardName(userData.role)}
-                  </button>
-                  
-                  {/* Mobile Profile Actions */}
-                  <Link
-                    to="/profile"
-                    onClick={() => setIsMobileOpen(false)}
-                    className="flex items-center px-4 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg"
-                  >
-                    <UserIcon className="w-5 h-5 mr-3" />
-                    View Profile
-                  </Link>
-                  
-                  <button
-                    onClick={() => {
-                      handleLogout();
-                      setIsMobileOpen(false);
-                    }}
-                    className="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg"
-                  >
-                    <ArrowRightStartOnRectangleIcon className="w-5 h-5 mr-3" />
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <button 
-                  onClick={() => { 
-                    setShowLoginModal(true); 
-                    setIsMobileOpen(false); 
-                  }} 
-                  className="w-full flex items-center justify-center bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 rounded-lg space-x-2"
-                >
-                  <UserIcon className="w-5 h-5" />
-                  <span>Login</span>
-                </button>
-              )}
             </div>
           </div>
-        </div>
+        )}
       </header>
 
       {/* Login Modal */}
@@ -675,8 +827,8 @@ const Header = () => {
           setShowPatientReg={setShowPatientReg}
           showForgotPassword={showForgotPassword}
           setShowForgotPassword={setShowForgotPassword}
-          username={username}
-          setUsername={setUsername}
+          email={email}
+          setEmail={setEmail}
           password={password}
           setPassword={setPassword}
           handlePatientLogin={handlePatientLogin}
@@ -708,8 +860,8 @@ const LoginModal = ({
   setShowPatientReg,
   showForgotPassword,
   setShowForgotPassword,
-  username,
-  setUsername,
+  email,
+  setEmail,
   password,
   setPassword,
   handlePatientLogin,
@@ -721,229 +873,292 @@ const LoginModal = ({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-md">
       <div className="absolute inset-0" onClick={closeModal}></div>
-      <div className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm w-full max-h-[650px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        {!loginRole && !showPatientReg && !showForgotPassword ? (
+      <div
+        className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm w-full max-h-[650px] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {!loginRole && !showPatientReg && !showForgotPassword && (
           <>
-            <button aria-label="Close" onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <button
+              aria-label="Close"
+              onClick={closeModal}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
               <XMarkIcon className="w-6 h-6" />
             </button>
-            <h2 className="text-xl text-center font-bold mb-6">Login As</h2>
+            <h2 className="text-xl font-bold text-center mb-6">Login As</h2>
             <div className="space-y-3">
-              <button className="w-full py-3 font-semibold rounded-md text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90" onClick={() => setLoginRole("patient")}>Patient</button>
-              <button className="w-full py-3 font-semibold rounded-md text-white bg-gradient-to-r from-emerald-700 to-green-700 hover:opacity-90" onClick={() => setLoginRole("doctor")}>Doctor</button>
-              <button className="w-full py-3 font-semibold rounded-md text-white bg-gradient-to-r from-green-700 to-emerald-700 hover:opacity-90" onClick={() => setLoginRole("admin")}>Admin</button>
+              <button
+                className="w-full py-3 rounded-md bg-gradient-to-r from-green-500 to-emerald-600 text-white"
+                onClick={() => setLoginRole("patient")}
+              >
+                Patient
+              </button>
+              <button
+                className="w-full py-3 rounded-md bg-gradient-to-r from-emerald-700 to-green-700 text-white"
+                onClick={() => setLoginRole("doctor")}
+              >
+                Doctor
+              </button>
+              <button
+                className="w-full py-3 rounded-md bg-gradient-to-r from-green-700 to-emerald-700 text-white"
+                onClick={() => setLoginRole("admin")}
+              >
+                Admin
+              </button>
             </div>
           </>
-        ) : null}
+        )}
 
-        {loginRole === "patient" && !showPatientReg && !showForgotPassword ? (
-          <PatientLogin 
-            onBack={() => setLoginRole(null)} 
-            setShowPatientReg={setShowPatientReg} 
+        {loginRole === "patient" && !showPatientReg && !showForgotPassword && (
+          <PatientLogin
+            onBack={() => setLoginRole(null)}
+            setShowPatientReg={setShowPatientReg}
             setShowForgotPassword={setShowForgotPassword}
-            username={username}
-            setUsername={setUsername}
+            email={email}
+            setEmail={setEmail}
             password={password}
             setPassword={setPassword}
             handlePatientLogin={handlePatientLogin}
           />
-        ) : null}
+        )}
 
-        {loginRole !== "patient" && loginRole && !showPatientReg && !showForgotPassword ? (
-          <UserLogin 
-            role={loginRole} 
-            onBack={() => setLoginRole(null)}
-            username={username}
-            setUsername={setUsername}
-            password={password}
-            setPassword={setPassword}
-            handleUserLogin={handleUserLogin}
-          />
-        ) : null}
+        {loginRole &&
+          loginRole !== "patient" &&
+          !showPatientReg &&
+          !showForgotPassword && (
+            <UserLogin
+              role={loginRole}
+              onBack={() => setLoginRole(null)}
+              email={email}
+              setEmail={setEmail}
+              password={password}
+              setPassword={setPassword}
+              handleUserLogin={handleUserLogin}
+            />
+          )}
 
-        {showPatientReg ? (
+        {showPatientReg && (
           <div>
             <PatientRegistration />
-            <button onClick={() => { setShowPatientReg(false); setLoginRole(null); }} className="w-full mt-6 py-3 rounded-md bg-gray-100 text-green-700 font-semibold">Back to Login</button>
+            <button
+              onClick={() => {
+                setShowPatientReg(false);
+                setLoginRole(null);
+              }}
+              className="w-full mt-6 py-3 rounded-md bg-gray-100 text-green-700 font-semibold"
+            >
+              Back to Login
+            </button>
           </div>
-        ) : null}
+        )}
 
-        {showForgotPassword ? (
-          <ForgotPassword 
+        {showForgotPassword && (
+          <ForgotPassword
             setShowForgotPassword={setShowForgotPassword}
             forgotEmail={forgotEmail}
             setForgotEmail={setForgotEmail}
             handleForgotPasswordSubmit={handleForgotPasswordSubmit}
           />
-        ) : null}
+        )}
       </div>
     </div>
   );
 };
 
-const PatientLogin = ({ 
-  onBack, 
-  setShowPatientReg, 
-  setShowForgotPassword, 
-  username, 
-  setUsername, 
-  password, 
-  setPassword, 
-  handlePatientLogin 
+const PatientLogin = ({
+  onBack,
+  setShowPatientReg,
+  setShowForgotPassword,
+  email,
+  setEmail,
+  password,
+  setPassword,
+  handlePatientLogin,
 }) => {
   return (
     <form onSubmit={handlePatientLogin} className="space-y-4 relative">
-      <button type="button" className="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onClick={onBack}>← Back</button>
+      <button
+        type="button"
+        onClick={onBack}
+        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+      >
+        ← Back
+      </button>
       <h3 className="text-lg font-semibold text-center">Patient Login</h3>
-      <label className="block text-base font-medium mb-1">Username</label>
-      <input 
-        type="text" 
-        placeholder="Username (try: john.doe)" 
-        value={username} 
-        onChange={e => setUsername(e.target.value)} 
-        required 
-        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" 
+      <label className="block text-base font-medium mb-1">Email</label>
+      <input
+        type="email"
+        placeholder="you@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500"
       />
       <label className="block text-base font-medium mb-1">Password</label>
-      <input 
-        type="password" 
-        placeholder="Password" 
-        value={password} 
-        onChange={e => setPassword(e.target.value)} 
-        required 
-        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" 
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500"
       />
-      <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-md font-semibold">Login</button>
+      <button
+        type="submit"
+        className="w-full py-3 rounded-md bg-green-600 text-white font-semibold"
+      >
+        Login
+      </button>
       <div className="flex justify-between mt-2 text-sm">
-        <button type="button" className="text-green-600 hover:underline" onClick={() => setShowPatientReg(true)}>New Patient? Register</button>
-        <button type="button" className="text-green-600 hover:underline" onClick={() => setShowForgotPassword(true)}>Forgot Password?</button>
+        <button
+          type="button"
+          onClick={() => setShowPatientReg(true)}
+          className="text-green-600 hover:underline"
+        >
+          New Patient? Register
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowForgotPassword(true)}
+          className="text-green-600 hover:underline"
+        >
+          Forgot Password?
+        </button>
       </div>
     </form>
   );
 };
 
-const UserLogin = ({ 
-  role, 
-  onBack, 
-  username, 
-  setUsername, 
-  password, 
-  setPassword, 
-  handleUserLogin 
+const UserLogin = ({
+  role,
+  onBack,
+  email,
+  setEmail,
+  password,
+  setPassword,
+  handleUserLogin,
 }) => {
   return (
     <form onSubmit={handleUserLogin} className="space-y-4 relative">
-      <button type="button" className="absolute top-4 right-4 text-gray-600 hover:text-gray-900" onClick={onBack}>← Back</button>
-      <h3 className="text-lg font-semibold text-center">{role.charAt(0).toUpperCase() + role.slice(1)} Login</h3>
-      <label className="block text-base font-medium mb-1">Username</label>
-      <input 
-        type="text" 
-        placeholder={`Username (try: ${role === 'doctor' ? 'dr.priya' : 'admin'})`}
-        value={username} 
-        onChange={e => setUsername(e.target.value)} 
-        required 
-        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" 
+      <button
+        type="button"
+        onClick={onBack}
+        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+      >
+        ← Back
+      </button>
+      <h3 className="text-lg font-semibold text-center">
+        {role.charAt(0).toUpperCase() + role.slice(1)} Login
+      </h3>
+      <label className="block text-base font-medium mb-1">Email</label>
+      <input
+        type="email"
+        placeholder={`${role}@example.com`}
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500"
       />
       <label className="block text-base font-medium mb-1">Password</label>
-      <input 
-        type="password" 
-        placeholder="Password" 
-        value={password} 
-        onChange={e => setPassword(e.target.value)} 
-        required 
-        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" 
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500"
       />
-      <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-md font-semibold">Login</button>
+      <button
+        type="submit"
+        className="w-full py-3 rounded-md bg-green-600 text-white font-semibold"
+      >
+        Login
+      </button>
     </form>
   );
 };
 
-const ForgotPassword = ({ 
-  setShowForgotPassword, 
-  forgotEmail, 
-  setForgotEmail, 
-  handleForgotPasswordSubmit 
+const ForgotPassword = ({
+  setShowForgotPassword,
+  forgotEmail,
+  setForgotEmail,
+  handleForgotPasswordSubmit,
 }) => {
   return (
     <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 relative">
-      <button type="button" className="absolute top-4 right-4 text-gray-600 hover:text-gray-900" onClick={() => setShowForgotPassword(false)}>← Back</button>
-      <h3 className="text-xl font-semibold text-center mb-6">Forgot Password</h3>
-      <label className="block mb-1">Email</label>
-      <input 
-        type="email" 
-        placeholder="Your registered email" 
-        value={forgotEmail} 
-        onChange={e => setForgotEmail(e.target.value)} 
-        required 
-        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500" 
+      <button
+        type="button"
+        onClick={() => setShowForgotPassword(false)}
+        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+      >
+        ← Back
+      </button>
+      <h3 className="text-xl font-semibold text-center mb-6">
+        Forgot Password
+      </h3>
+      <label className="block text-base font-medium mb-1">Email</label>
+      <input
+        type="email"
+        placeholder="Your registered email"
+        value={forgotEmail}
+        onChange={(e) => setForgotEmail(e.target.value)}
+        required
+        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-green-500"
       />
-      <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-md font-semibold">Send Reset Link</button>
+      <button
+        type="submit"
+        className="w-full py-3 rounded-md bg-green-600 text-white font-semibold"
+      >
+        Send Reset Link
+      </button>
     </form>
   );
 };
 
-const AppointmentModal = ({ selectedAppointmentType, closeAppointmentModal, handleAppointmentAction }) => (
-  <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-md">
-    <div className="absolute inset-0" onClick={closeAppointmentModal}></div>
-    <div
-      className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm w-full max-h-[320px] overflow-y-auto"
-      onClick={e => e.stopPropagation()}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="appointment-modal-title"
-    >
-      <button
-        aria-label="Close appointment modal"
-        onClick={closeAppointmentModal}
-        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-600 rounded"
+const AppointmentModal = ({
+  selectedAppointmentType,
+  closeAppointmentModal,
+  handleAppointmentAction,
+}) => {
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-md">
+      <div className="absolute inset-0" onClick={closeAppointmentModal}></div>
+      <div
+        className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm w-full max-h-[320px] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
       >
-        <XMarkIcon className="w-6 h-6" />
-      </button>
-      <h2 id="appointment-modal-title" className="text-xl text-center font-bold mb-6">
-        {selectedAppointmentType} Appointments
-      </h2>
-
-      <div className="flex flex-col space-y-6">
         <button
-          onClick={() => handleAppointmentAction("Booking")}
-          className="w-full py-3 rounded-md font-semibold bg-green-600 text-white 
-            hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-400 transition relative"
-          type="button"
-          aria-describedby="booking-desc"
+          aria-label="Close"
+          onClick={closeAppointmentModal}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
         >
-          {selectedAppointmentType === "Panchakarma" ? "Booking" : "Join Queue"}
-          <p
-            id="booking-desc"
-            className="text-sm text-green-200 mt-1 font-normal select-none pointer-events-none"
-          >
-            {selectedAppointmentType === "Panchakarma" 
-              ? "Schedule a new Panchakarma session" 
-              : "Join the real-time consultation queue"
-            }
-          </p>
+          <XMarkIcon className="w-6 h-6" />
         </button>
-
-        <button
-          onClick={() => handleAppointmentAction("Reschedule/Cancel")}
-          className="w-full py-3 rounded-md font-semibold bg-gray-200 text-gray-800 
-            hover:bg-gray-300 focus:outline-none focus:ring-4 focus:ring-gray-400 transition relative"
-          type="button"
-          aria-describedby="reschedule-desc"
-        >
-          {selectedAppointmentType === "Panchakarma" ? "Reschedule/Cancel" : "Manage Queue"}
-          <p
-            id="reschedule-desc"
-            className="text-sm text-gray-600 mt-1 font-normal select-none pointer-events-none"
+        <h2 className="text-xl text-center font-bold mb-6">
+          {selectedAppointmentType} Appointments
+        </h2>
+        <div className="flex flex-col space-y-6">
+          <button
+            onClick={() => handleAppointmentAction("Booking")}
+            className="w-full py-3 rounded-md bg-green-600 text-white font-semibold hover:bg-green-700"
           >
-            {selectedAppointmentType === "Panchakarma" 
-              ? "Modify or cancel your existing appointment"
-              : "Reschedule or cancel your queue position"
-            }
-          </p>
-        </button>
+            {selectedAppointmentType === "Panchakarma"
+              ? "Booking"
+              : "Join Queue"}
+          </button>
+          <button
+            onClick={() => handleAppointmentAction("Reschedule/Cancel")}
+            className="w-full py-3 rounded-md bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300"
+          >
+            {selectedAppointmentType === "Panchakarma"
+              ? "Reschedule/Cancel"
+              : "Manage Queue"}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default Header;

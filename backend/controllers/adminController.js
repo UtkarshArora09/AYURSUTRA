@@ -7,14 +7,19 @@ const Therapist = require("../models/therapistModel");
 const Patient = require("../models/patientModel");
 const Therapy = require("../models/therapyModel");
 
-// Admin login
 exports.loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log("Login attempt:", email, password);
+
     const admin = await Admin.findByEmail(email);
-    if (!admin) return res.status(400).json({ message: "Invalid credentials" });
+    if (!admin) {
+      console.log("No admin found with email:", email);
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
     const isMatch = await bcrypt.compare(password, admin.password);
+    console.log("Password match:", isMatch);
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
 
@@ -24,8 +29,17 @@ exports.loginAdmin = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.status(200).json({ token, admin });
+    // Construct a consistent response with a name field
+    const adminData = {
+      id: admin.id || admin.admin_id,
+      email: admin.email,
+      role: admin.role,
+      name: admin.name || "Administrator", // fallback if name is missing
+    };
+
+    res.status(200).json({ token, user: adminData }); // send as "user" to match frontend expectations
   } catch (err) {
+    console.error("Login error:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -94,12 +108,10 @@ exports.registerTherapist = async (req, res) => {
       qualification,
       assigned_doctor_id,
     });
-    res
-      .status(201)
-      .json({
-        message: "Therapist registered successfully",
-        therapist: newTherapist,
-      });
+    res.status(201).json({
+      message: "Therapist registered successfully",
+      therapist: newTherapist,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
