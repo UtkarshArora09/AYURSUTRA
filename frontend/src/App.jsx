@@ -16,6 +16,7 @@ import QueueRescheduleCancel from './components/QueueRescheduleCancel';
 import QueueTrends from './pages/QueueTrends';
 import DoctorDashboard from './components/DoctorDashboard';
 import PatientDashboard from './components/PatientDashboard';
+import ResetPassword from './pages/newpassword';
 
 function App() {
   return (
@@ -27,7 +28,7 @@ function App() {
           <Routes>
             {/* Home Route */}
             <Route path="/" element={<Home />} />
-            
+
             {/* Therapies Routes */}
             <Route path="/therapies/*" element={<Therapies />} />
 
@@ -44,16 +45,19 @@ function App() {
             {/* General Appointment Routes - Using Queue System */}
             <Route path="/queue/join" element={<JoinQueue />} />
             <Route path="/queue/reschedule-cancel" element={<QueueRescheduleCancel />} />
-            
+
             {/* Alternative routes for consistency */}
             <Route path="/appointments/general/reschedule" element={<QueueRescheduleCancel />} />
 
             {/* Queue Routes */}
             <Route path="/queue" element={<QueueTrends />} />
-            <Route path="/dashboard" element={<PatientDashboard/>}/>
+            <Route path="/dashboard" element={<PatientDashboard />} />
             <Route path="/queuetrends" element={<QueueTrends />} />
             <Route path="/patient-dashboard" element={<PatientDashboard />} />
-<Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+            <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+
+            {/*new password */}
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
 
             {/* 404 catch-all */}
             <Route

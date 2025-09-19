@@ -205,25 +205,7 @@ const PatientRegistration = ({ generatedPatientId }) => {
         </p>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* Patient ID */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Patient ID <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="patientId"
-              value={
-                generatedPatientId ||
-                "AYR-2024-" +
-                  Math.floor(Math.random() * 1000)
-                    .toString()
-                    .padStart(3, "0")
-              }
-              readOnly
-              className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-gray-700 cursor-not-allowed"
-            />
-          </div>
+         
 
           {/* Name */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
