@@ -8,14 +8,9 @@ const { protect, authorize } = require("../middleware/authMiddleware");
 // router.post("/auth/register", authDoctorController.registerDoctor);
 router.post("/auth/login", authDoctorController.loginDoctor);
 
-// Doctor protected routes
-router.get("/", protect, authorize("doctor"), doctorController.getDoctors);
-router.get(
-  "/:id",
-  protect,
-  authorize("doctor"),
-  doctorController.getDoctorById
-);
+//Doctor protected routes
+router.get("/", doctorController.getDoctors);
+router.get("/:id", doctorController.getDoctorById);
 router.put("/:id", protect, authorize("doctor"), doctorController.updateDoctor);
 router.delete(
   "/:id",

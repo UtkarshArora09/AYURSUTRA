@@ -78,7 +78,9 @@ export default function QueueTrends() {
             </form>
 
             {error && (
-              <p className="text-center text-red-600 font-semibold mb-4">{error}</p>
+              <p className="text-center text-red-600 font-semibold mb-4">
+                {error}
+              </p>
             )}
 
             {queueInfo && (
@@ -100,10 +102,12 @@ export default function QueueTrends() {
                   <strong>Purpose:</strong> {queueInfo.visitPurpose}
                 </p>
                 <p>
-                  <strong>Current Position:</strong> {queueInfo.currentPosition} / {queueInfo.totalInQueue}
+                  <strong>Current Position:</strong> {queueInfo.currentPosition}{" "}
+                  / {queueInfo.totalInQueue}
                 </p>
                 <p>
-                  <strong>Estimated Wait Time:</strong> {queueInfo.estimatedWaitTime} minutes
+                  <strong>Estimated Wait Time:</strong>{" "}
+                  {queueInfo.estimatedWaitTime} minutes
                 </p>
                 <p>
                   <strong>Status:</strong>{" "}
@@ -118,7 +122,8 @@ export default function QueueTrends() {
                         : "text-red-600"
                     }`}
                   >
-                    {queueInfo.status.charAt(0).toUpperCase() + queueInfo.status.slice(1)}
+                    {queueInfo.status.charAt(0).toUpperCase() +
+                      queueInfo.status.slice(1)}
                   </span>
                 </p>
               </div>
