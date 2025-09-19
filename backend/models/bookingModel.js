@@ -43,18 +43,48 @@ const createBooking = async (bookingData) => {
 
 // Get all bookings
 const getAllBookings = async () => {
-  const result = await db.query("SELECT * FROM therapy_bookings ORDER BY booking_id DESC");
+  const result = await db.query(
+    "SELECT * FROM therapy_bookings ORDER BY booking_id DESC"
+  );
   return result.rows;
 };
 
 // Get booking by ID
 const getBookingById = async (id) => {
-  const result = await db.query("SELECT * FROM therapy_bookings WHERE booking_id = $1", [id]);
+  const result = await db.query(
+    "SELECT * FROM therapy_bookings WHERE booking_id = $1",
+    [id]
+  );
   return result.rows[0];
+};
+
+const searchBooking = async ({ booking_id, patient_id, mobile_number }) => {
+  let query = "SELECT * FROM therapy_bookings WHERE 1=1";
+  const values = [];
+  let count = 1;
+
+  if (booking_id) {
+    query += ` AND booking_id::text = $${count++}`; // cast to text
+    values.push(String(booking_id));
+  }
+
+  if (patient_id) {
+    query += ` AND patient_id = $${count++}`;
+    values.push(String(patient_id));
+  }
+
+  if (mobile_number) {
+    query += ` AND mobile_number = $${count++}`;
+    values.push(String(mobile_number));
+  }
+
+  const result = await db.query(query, values);
+  return result.rows;
 };
 
 module.exports = {
   createBooking,
   getAllBookings,
   getBookingById,
+  searchBooking,
 };

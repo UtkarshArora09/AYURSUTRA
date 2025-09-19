@@ -14,22 +14,22 @@ import Footer from "../components/Footer";
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
   // Get token and email from URL parameters
-  const token = searchParams.get('token');
-  const email = searchParams.get('email');
-  
+  const token = searchParams.get("token");
+  const email = searchParams.get("email");
+
   const [formData, setFormData] = useState({
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState("");
   const [passwordMatch, setPasswordMatch] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [resetStatus, setResetStatus] = useState('idle'); // idle, success, error, invalid_token
+  const [resetStatus, setResetStatus] = useState("idle"); // idle, success, error, invalid_token
   const [errorMessage, setErrorMessage] = useState("");
   const [tokenValid, setTokenValid] = useState(null); // null, true, false
 
@@ -38,30 +38,30 @@ const ResetPassword = () => {
     const verifyToken = async () => {
       if (!token || !email) {
         setTokenValid(false);
-        setErrorMessage("Invalid reset link. Please request a new password reset.");
+        setErrorMessage(
+          "Invalid reset link. Please request a new password reset."
+        );
         return;
       }
 
       try {
-        // TODO: Replace with actual backend API call to verify token
-        const response = await fetch(`/api/auth/verify-reset-token`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token, email })
+        const response = await fetch("/api/auth/verify-reset-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, email }),
         });
 
-        // Simulate token verification for demo
-        // In real implementation, check response.ok and handle accordingly
-        if (token.length > 10) { // Mock validation
+        const data = await response.json();
+
+        if (response.ok && data.valid) {
           setTokenValid(true);
         } else {
           setTokenValid(false);
-          setErrorMessage("This reset link has expired or is invalid. Please request a new password reset.");
+          setErrorMessage(
+            data.message || "This reset link has expired or is invalid."
+          );
         }
       } catch (error) {
-        console.error('Error verifying token:', error);
         setTokenValid(false);
         setErrorMessage("Unable to verify reset link. Please try again later.");
       }
@@ -118,28 +118,40 @@ const ResetPassword = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const getPasswordStrengthColor = (strength) => {
     switch (strength) {
-      case "Very Weak": return "text-red-600";
-      case "Weak": return "text-red-500";
-      case "Fair": return "text-yellow-500";
-      case "Good": return "text-blue-500";
-      case "Strong": return "text-green-600";
-      default: return "";
+      case "Very Weak":
+        return "text-red-600";
+      case "Weak":
+        return "text-red-500";
+      case "Fair":
+        return "text-yellow-500";
+      case "Good":
+        return "text-blue-500";
+      case "Strong":
+        return "text-green-600";
+      default:
+        return "";
     }
   };
 
   const getPasswordStrengthBg = (strength) => {
     switch (strength) {
-      case "Very Weak": return "bg-red-100 border-red-200";
-      case "Weak": return "bg-red-50 border-red-200";
-      case "Fair": return "bg-yellow-50 border-yellow-200";
-      case "Good": return "bg-blue-50 border-blue-200";
-      case "Strong": return "bg-green-50 border-green-200";
-      default: return "";
+      case "Very Weak":
+        return "bg-red-100 border-red-200";
+      case "Weak":
+        return "bg-red-50 border-red-200";
+      case "Fair":
+        return "bg-yellow-50 border-yellow-200";
+      case "Good":
+        return "bg-blue-50 border-blue-200";
+      case "Strong":
+        return "bg-green-50 border-green-200";
+      default:
+        return "";
     }
   };
 
@@ -163,46 +175,42 @@ const ResetPassword = () => {
     }
 
     try {
-      // TODO: Replace with actual backend API call
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           token,
           email,
-          newPassword: formData.password
-        })
+          newPassword: formData.password, // 👈 make sure it's newPassword
+        }),
       });
 
-      // Simulate API call for demo
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const data = await response.json();
 
-      if (true) { // Replace with response.ok
-        setResetStatus('success');
-        
-        // Redirect to login after 3 seconds
+      if (response.ok) {
+        setResetStatus("success");
         setTimeout(() => {
-          navigate('/login', { 
-            state: { 
-              message: 'Password reset successful. Please log in with your new password.' 
-            }
+          navigate("/login", {
+            state: {
+              message:
+                "Password reset successful. Please log in with your new password.",
+            },
           });
         }, 3000);
       } else {
-        setResetStatus('error');
-        setErrorMessage("Failed to reset password. Please try again.");
+        setResetStatus("error");
+        setErrorMessage(data.message || "Failed to reset password.");
       }
     } catch (error) {
-      console.error('Error resetting password:', error);
-      setResetStatus('error');
-      setErrorMessage("An error occurred while resetting your password. Please try again.");
+      console.error("Error resetting password:", error);
+      setResetStatus("error");
+      setErrorMessage("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
-
   // Loading state while verifying token
   if (tokenValid === null) {
     return (
@@ -211,8 +219,12 @@ const ResetPassword = () => {
         <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <h2 className="text-xl font-semibold text-gray-700">Verifying reset link...</h2>
-            <p className="text-gray-500 mt-2">Please wait while we validate your request.</p>
+            <h2 className="text-xl font-semibold text-gray-700">
+              Verifying reset link...
+            </h2>
+            <p className="text-gray-500 mt-2">
+              Please wait while we validate your request.
+            </p>
           </div>
         </div>
         <Footer />
@@ -228,7 +240,9 @@ const ResetPassword = () => {
         <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8 text-center">
             <ExclamationTriangleIcon className="w-16 h-16 text-red-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-red-900 mb-4">Invalid Reset Link</h2>
+            <h2 className="text-2xl font-bold text-red-900 mb-4">
+              Invalid Reset Link
+            </h2>
             <p className="text-gray-600 mb-6">{errorMessage}</p>
             <div className="space-y-4">
               <Link
@@ -253,16 +267,19 @@ const ResetPassword = () => {
   }
 
   // Success state
-  if (resetStatus === 'success') {
+  if (resetStatus === "success") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-white">
         <Header />
         <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8 text-center">
             <CheckCircleIcon className="w-16 h-16 text-green-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-green-900 mb-4">Password Reset Successful!</h2>
+            <h2 className="text-2xl font-bold text-green-900 mb-4">
+              Password Reset Successful!
+            </h2>
             <p className="text-gray-600 mb-6">
-              Your password has been successfully updated. You will be redirected to the login page shortly.
+              Your password has been successfully updated. You will be
+              redirected to the login page shortly.
             </p>
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-green-800">
@@ -286,14 +303,16 @@ const ResetPassword = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white">
       <Header />
-      
+
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
             <KeyIcon className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-blue-900 mb-2">Reset Your Password</h2>
+            <h2 className="text-2xl font-bold text-blue-900 mb-2">
+              Reset Your Password
+            </h2>
             <p className="text-gray-600">Enter your new password below</p>
-            
+
             {email && (
               <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-800">
@@ -302,7 +321,7 @@ const ResetPassword = () => {
               </div>
             )}
           </div>
-          
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Error Message */}
             {errorMessage && (
@@ -335,20 +354,32 @@ const ResetPassword = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700"
                 >
-                  {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeSlashIcon className="w-5 h-5" />
+                  ) : (
+                    <EyeIcon className="w-5 h-5" />
+                  )}
                 </button>
               </div>
-              
+
               {/* Password Strength Indicator */}
               {formData.password && (
-                <div className={`mt-2 p-2 rounded border ${getPasswordStrengthBg(passwordStrength)}`}>
-                  <p className={`text-xs font-medium ${getPasswordStrengthColor(passwordStrength)}`}>
+                <div
+                  className={`mt-2 p-2 rounded border ${getPasswordStrengthBg(
+                    passwordStrength
+                  )}`}
+                >
+                  <p
+                    className={`text-xs font-medium ${getPasswordStrengthColor(
+                      passwordStrength
+                    )}`}
+                  >
                     Password Strength: {passwordStrength}
                   </p>
                 </div>
               )}
             </div>
-            
+
             {/* Confirm Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -371,19 +402,31 @@ const ResetPassword = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700"
                 >
-                  {showConfirmPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                  {showConfirmPassword ? (
+                    <EyeSlashIcon className="w-5 h-5" />
+                  ) : (
+                    <EyeIcon className="w-5 h-5" />
+                  )}
                 </button>
               </div>
-              
+
               {/* Password Match Indicator */}
               {formData.confirmPassword && (
-                <div className={`mt-2 p-2 rounded border ${
-                  passwordMatch ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
-                }`}>
-                  <p className={`text-xs font-medium ${
-                    passwordMatch ? "text-green-600" : "text-red-600"
-                  }`}>
-                    {passwordMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
+                <div
+                  className={`mt-2 p-2 rounded border ${
+                    passwordMatch
+                      ? "bg-green-50 border-green-200"
+                      : "bg-red-50 border-red-200"
+                  }`}
+                >
+                  <p
+                    className={`text-xs font-medium ${
+                      passwordMatch ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {passwordMatch
+                      ? "✓ Passwords match"
+                      : "✗ Passwords do not match"}
                   </p>
                 </div>
               )}
@@ -391,21 +434,45 @@ const ResetPassword = () => {
 
             {/* Password Requirements */}
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <p className="text-sm font-medium text-gray-700 mb-2">Password must contain:</p>
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                Password must contain:
+              </p>
               <ul className="text-xs text-gray-600 space-y-1">
-                <li className={formData.password.length >= 8 ? "text-green-600" : ""}>
+                <li
+                  className={
+                    formData.password.length >= 8 ? "text-green-600" : ""
+                  }
+                >
                   • At least 8 characters
                 </li>
-                <li className={/[a-z]/.test(formData.password) ? "text-green-600" : ""}>
+                <li
+                  className={
+                    /[a-z]/.test(formData.password) ? "text-green-600" : ""
+                  }
+                >
                   • One lowercase letter
                 </li>
-                <li className={/[A-Z]/.test(formData.password) ? "text-green-600" : ""}>
+                <li
+                  className={
+                    /[A-Z]/.test(formData.password) ? "text-green-600" : ""
+                  }
+                >
                   • One uppercase letter
                 </li>
-                <li className={/[0-9]/.test(formData.password) ? "text-green-600" : ""}>
+                <li
+                  className={
+                    /[0-9]/.test(formData.password) ? "text-green-600" : ""
+                  }
+                >
                   • One number
                 </li>
-                <li className={/[^A-Za-z0-9]/.test(formData.password) ? "text-green-600" : ""}>
+                <li
+                  className={
+                    /[^A-Za-z0-9]/.test(formData.password)
+                      ? "text-green-600"
+                      : ""
+                  }
+                >
                   • One special character
                 </li>
               </ul>
@@ -414,7 +481,12 @@ const ResetPassword = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={!passwordMatch || passwordStrength === "Very Weak" || passwordStrength === "Weak" || isSubmitting}
+              disabled={
+                !passwordMatch ||
+                passwordStrength === "Very Weak" ||
+                passwordStrength === "Weak" ||
+                isSubmitting
+              }
               className="w-full py-3 text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl font-bold shadow-lg transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {isSubmitting ? (

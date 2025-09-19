@@ -174,6 +174,28 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
+exports.verifyResetToken = async (req, res) => {
+  try {
+    const { token, email } = req.body;
+
+    if (!token || !email) {
+      return res.status(400).json({ valid: false, message: "Token and email required" });
+    }
+
+    // Check if patient exists with reset token
+    const patient = await Patient.findByEmail(email);
+
+    if (!patient || patient.reset_token !== token || new Date(patient.reset_token_expiry) < new Date()) {
+      return res.status(400).json({ valid: false, message: "Invalid or expired reset link" });
+    }
+
+    return res.json({ valid: true, message: "Valid reset link" });
+  } catch (err) {
+    console.error("Verify token error:", err.message);
+    return res.status(500).json({ valid: false, message: "Server error" });
+  }
+};
+
 // Reset Password - set new password
 exports.resetPassword = async (req, res) => {
   try {

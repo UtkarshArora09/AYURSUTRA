@@ -6,5 +6,5 @@ const bookingController = require("../controllers/bookingController");
 router.post("/", bookingController.createBooking);
 router.get("/", bookingController.getAllBookings);
 router.get("/:id", bookingController.getBookingById);
-
+router.post("/search", bookingController.search);
 module.exports = router;

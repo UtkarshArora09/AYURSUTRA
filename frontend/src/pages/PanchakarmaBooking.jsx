@@ -11,6 +11,7 @@ import {
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import AppointmentReceipt from "../components/AppointmentReceipt";
+import AyurVaidya from "../components/AyurSutraBot"; // Import Sahayak chatbot
 
 const PanchakarmaBooking = () => {
   // Patient data (auto-fetched from backend/database)
@@ -384,10 +385,15 @@ const PanchakarmaBooking = () => {
                       Patient ID
                     </label>
                     <input
-                      type="text"
+                      type="number"
                       value={patientData.patientId}
-                      readOnly
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                      onChange={(e) =>
+                        setPatientData({
+                          ...patientData,
+                          patientId: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                     />
                   </div>
 
@@ -398,8 +404,13 @@ const PanchakarmaBooking = () => {
                     <input
                       type="text"
                       value={patientData.name}
-                      readOnly
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                      onChange={(e) =>
+                        setPatientData({
+                          ...patientData,
+                          name: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                     />
                   </div>
 
@@ -408,10 +419,15 @@ const PanchakarmaBooking = () => {
                       Aadhar Number
                     </label>
                     <input
-                      type="text"
+                      type="number"
                       value={patientData.aadharNumber}
-                      readOnly
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                      onChange={(e) =>
+                        setPatientData({
+                          ...patientData,
+                          aadharNumber: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                     />
                   </div>
                 </div>
@@ -818,6 +834,9 @@ const PanchakarmaBooking = () => {
       </div>
 
       <Footer />
+
+      {/* Sahayak Chatbot - Floating Assistant */}
+      <AyurVaidya />
     </div>
   );
 };

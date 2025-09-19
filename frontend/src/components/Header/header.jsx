@@ -256,9 +256,13 @@ const Header = () => {
       else if (action === "Reschedule/Cancel")
         navigate("/appointments/panchakarma/reschedule");
     } else if (selectedAppointmentType === "General Appointment") {
-      if (action === "Booking") navigate("/queue/join");
-      else if (action === "Reschedule/Cancel")
+      if (action === "Booking") {
+        // *CHANGED*: Redirect to external deployed URL
+        window.location.href = "https://queuecare-backend.vercel.app/user.html";
+        return; // Return early to prevent closing modal immediately
+      } else if (action === "Reschedule/Cancel") {
         navigate("/queue/reschedule-cancel");
+      }
     }
     closeAppointmentModal();
   };
@@ -444,12 +448,12 @@ const Header = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-18 lg:h-20">
             {/* Logo */}
-            <Link
+            {/* <Link
               to="/"
               className="flex items-center space-x-3 cursor-pointer flex-shrink-0"
             >
               <div className="relative">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
                   <img
                     src="/assets/logo.jpg"
                     alt="AyurSutra Logo"
@@ -464,6 +468,53 @@ const Header = () => {
                   </span>
                 </div>
                 <div className="absolute -inset-1 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl blur opacity-0 group-hover:opacity-30"></div>
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
+                  AyurSutra
+                </h1>
+                <p className="text-xs text-gray-600 -mt-1">
+                  Ayurvedic Wellness Platform
+                </p>
+              </div>
+            </Link> */}
+            <Link
+              to="/"
+              className="flex items-center space-x-3 cursor-pointer flex-shrink-0"
+            >
+              <div className="relative">
+                <div
+                  className="
+      w-8 h-8 sm:w-40 sm:h-40 lg:w-12 lg:h-12
+      rounded-full
+      bg-gradient-to-br from-white to-white
+      flex items-center justify-center
+      shadow-lg
+      group-hover:shadow-xl
+      transition-all duration-300
+      group-hover:scale-105
+    "
+                >
+                  <img
+                    src="/assets/logo.jpg"
+                    alt="AyurSutra Logo"
+                    className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 rounded-full object-cover object-center"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      e.target.nextSibling.style.display = "inline";
+                    }}
+                  />
+                  <span className="text-white font-bold text-lg hidden">
+                    🕉️
+                  </span>
+                </div>
+                <div
+                  className="
+      absolute -inset-1
+      bg-gradient-to-r from-white to-white
+      rounded-full blur opacity-0 group-hover:opacity-30
+    "
+                ></div>
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">

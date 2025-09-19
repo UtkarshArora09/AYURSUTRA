@@ -10,6 +10,7 @@ import {
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import HeroSection from "../components/Hero/HeroSection";
+import AyurSutraBot from "../components/AyurSutraBot"; // Import the AyurSutraBot component
 
 const testimonials = [
   {
@@ -174,7 +175,7 @@ const Home = () => (
               loading="lazy"
             />
             <h3 className="text-xl font-semibold text-green-800">{name}</h3>
-            <p className="text-gray-700 italic mt-2">“{text}”</p>
+            <p className="text-gray-700 italic mt-2">"{text}"</p>
             <div className="flex mt-4 space-x-1">
               {Array.from({ length: 5 }).map((_, idx) => (
                 <StarIcon
@@ -234,6 +235,9 @@ const Home = () => (
     </section>
 
     <Footer />
+
+    {/* AyurSutra Bot - Floating Chat Widget */}
+    <AyurSutraBot />
   </div>
 );
 

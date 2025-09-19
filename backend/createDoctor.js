@@ -8,7 +8,7 @@ async function createDoctor() {
     const email = "priya@example.com";
     const password = "@priya123";
     const phone = "9876543332";
-    const specialization = "Dermatology";
+    const specialization = "Mixed Dosha Specialist";
     const experience_years = 7;
     const qualification = "MBBS, MD";
     const clinic_address = "456 Shiv Vihar , Delhi City";
