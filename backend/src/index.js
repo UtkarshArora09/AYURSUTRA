@@ -13,5 +13,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on https://ayursutra-qhp0.onrender.com:${PORT}`);
+  console.log(`Server running on  http://localhost:${PORT}`);
 });
