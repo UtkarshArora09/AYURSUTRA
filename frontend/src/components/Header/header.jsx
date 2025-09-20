@@ -261,7 +261,7 @@ const Header = () => {
         window.location.href = "https://queuecare-backend.vercel.app/user.html";
         return; // Return early to prevent closing modal immediately
       } else if (action === "Reschedule/Cancel") {
-        navigate("/queue/reschedule-cancel");
+        window.location.href = "https://queuecare-backend.vercel.app/admin.html";
       }
     }
     closeAppointmentModal();
