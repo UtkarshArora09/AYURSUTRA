@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Link } from "react-router-dom";
 
 import { 
   BookOpenIcon, 
@@ -298,15 +297,10 @@ const Therapies = () => {
 
         {/* Action Buttons - Fixed at bottom with consistent sizing */}
         <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-4 border-t border-gray-100 mt-auto">
-          {*/<button className="w-full sm:flex-1 h-11 sm:h-12 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-semibold transition-all duration-300 hover:shadow-md flex items-center justify-center text-sm sm:text-base">
+          <button className="w-full sm:flex-1 h-11 sm:h-12 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-semibold transition-all duration-300 hover:shadow-md flex items-center justify-center text-sm sm:text-base">
             Learn More
-          </button>*/}
-          <Link
-               to="/pages/PanchakarmaBooking.jsx"   // 👈 replace with the route of your page
-               className="w-full sm:flex-1 h-11 sm:h-12 border-2 border-green-500 text-green-600 hover:bg-green-50 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center text-sm sm:text-base"
-            >
-              Book Session
-          </Link>
+          </button>
+        <button className="w-full sm:flex-1 h-11 sm:h-12 border-2 border-green-500 text-green-600 hover:bg-green-50 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center text-sm sm:text-base"> Book Session </button>
         </div>
       </div>
     </div>
