@@ -59,7 +59,7 @@ const PanchakarmaBooking = () => {
 
   const fetchDoctors = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/doctors");
+      const res = await fetch("https://ayursutra-qhp0.onrender.com/api/doctors");
       if (!res.ok) throw new Error("Failed to fetch doctors");
       const data = await res.json();
 
@@ -277,7 +277,7 @@ const PanchakarmaBooking = () => {
 
       console.log("Submitting booking:", bookingData);
 
-      const response = await fetch("http://localhost:5000/api/bookings", {
+      const response = await fetch("https://ayursutra-qhp0.onrender.com/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingData),
