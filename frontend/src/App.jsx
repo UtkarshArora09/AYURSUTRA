@@ -1,22 +1,21 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import Therapies from './pages/Therapies';
-import Home from './pages/Home';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import Therapies from "./pages/Therapies";
+import Home from "./pages/Home";
 
 // Patient-related imports
-import Patients from './pages/Patients';
-import PatientRegistration from './components/PatientRegistration/PatientRegistration';
-import PatientList from './pages/Patients';
-import PatientProfiles from './pages/Patients';
-import PanchakarmaBooking from './pages/PanchakarmaBooking';
-import PanchakarmaReschedule from './pages/PanchakarmaReschedule';
-import JoinQueue from './pages/JoinQueue';
-import QueueRescheduleCancel from './components/QueueRescheduleCancel';
-import QueueTrends from './pages/QueueTrends';
-import DoctorDashboard from './components/DoctorDashboard';
-import PatientDashboard from './components/PatientDashboard';
-import ResetPassword from './pages/newpassword';
+import PatientRegistration from "./components/PatientRegistration/PatientRegistration";
+import PatientList from "./pages/Patients";
+import PatientProfiles from "./pages/Patients";
+import PanchakarmaBooking from "./pages/PanchakarmaBooking";
+import PanchakarmaReschedule from "./pages/PanchakarmaReschedule";
+import JoinQueue from "./pages/JoinQueue";
+import QueueRescheduleCancel from "./components/QueueRescheduleCancel";
+import QueueTrends from "./pages/QueueTrends";
+import DoctorDashboard from "./components/DoctorDashboard";
+import PatientDashboard from "./components/PatientDashboard";
+import ResetPassword from "./pages/newpassword";
 
 function App() {
   return (
@@ -56,7 +55,7 @@ function App() {
             <Route path="/patient-dashboard" element={<PatientDashboard />} />
             <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
 
-            {/*new password */}
+            {/* New password */}
             <Route path="/reset-password/:token" element={<ResetPassword />} />
 
             {/* 404 catch-all */}
@@ -67,7 +66,10 @@ function App() {
                   <div className="text-center">
                     <h1 className="text-6xl font-bold text-gray-300 mb-4">404</h1>
                     <p className="text-xl text-gray-600 mb-8">Page not found</p>
-                    <a href="/" className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-medium transition-colors duration-300">
+                    <a
+                      href="/"
+                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-medium transition-colors duration-300"
+                    >
                       Back to Home
                     </a>
                   </div>
@@ -77,7 +79,7 @@ function App() {
           </Routes>
         </main>
 
-        {/* <Footer /> */}
+        <Footer />
       </div>
     </Router>
   );

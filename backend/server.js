@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const path = require('path');
 
 const adminRoutes = require("./routes/adminRoutes");
 const patientRoutes = require("./routes/patientRoutes");
@@ -21,6 +22,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 app.use("/api/admin", adminRoutes);
 app.use("/api/patients", patientRoutes);
@@ -32,6 +34,10 @@ app.use("/api/billing", billingRoutes);
 app.use("/api/therapy", therapyRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use('/', sitemapRoutes);
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
 
 app.get("/", (req, res) => {
   res.send(`🌿 AyurSutra API is running in ${process.env.NODE_ENV} mode`);
