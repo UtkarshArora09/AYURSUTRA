@@ -145,12 +145,12 @@ const PatientRegistration = ({ generatedPatientId }) => {
 
     const { confirmPassword, ...registrationData } = formData;
 
-    registrationData.patientId =
-      generatedPatientId ||
-      "AYR-2024-" +
-        Math.floor(Math.random() * 1000)
-          .toString()
-          .padStart(3, "0");
+  // registrationData.patientId =
+  //     generatedPatientId ||
+  //     "AYR-2024-" +
+  //       Math.floor(Math.random() * 1000)
+  //         .toString()
+  //         .padStart(3, "0");
 
     fetch("https://ayursutra-qhp0.onrender.com/api/patients/auth/register", {
       method: "POST",
