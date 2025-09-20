@@ -396,7 +396,7 @@ const Header = () => {
     e.preventDefault();
     try {
       const response = await fetch(
-        "http://localhost:5000/api/patients/auth/forgot-password",
+        "https://ayursutra-qhp0.onrender.com/api/patients/auth/forgot-password",
         {
           method: "POST",
           headers: {
