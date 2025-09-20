@@ -12,6 +12,7 @@ import Footer from "../components/Footer";
 import HeroSection from "../components/Hero/HeroSection";
 import AyurSutraBot from "../components/AyurSutraBot"; // Import the AyurSutraBot component
 
+
 const testimonials = [
   {
     name: "Priya Sharma",
@@ -33,6 +34,7 @@ const testimonials = [
   },
 ];
 
+
 const highlights = [
   {
     icon: <SparklesIcon className="w-10 h-10 text-green-600 animate-pulse" />,
@@ -50,6 +52,7 @@ const highlights = [
     desc: "Seamless booking, patient management, and progress tracking on a user-friendly platform.",
   },
 ];
+
 
 const faqItems = [
   {
@@ -69,12 +72,15 @@ const faqItems = [
   },
 ];
 
+
 const Home = () => (
   <div className="min-h-screen flex flex-col bg-gradient-to-br from-green-50 via-emerald-50 to-white">
     <Header />
 
+
     {/* Hero Section */}
     <HeroSection />
+
 
     {/* Why Choose Us */}
     <section className="max-w-7xl mx-auto py-20 px-6 sm:px-10">
@@ -94,6 +100,7 @@ const Home = () => (
         ))}
       </div>
     </section>
+
 
     {/* Featured Therapies */}
     <section className="max-w-7xl mx-auto px-6 sm:px-10 mb-24">
@@ -139,23 +146,30 @@ const Home = () => (
       </div>
     </section>
 
-    {/* Video Section */}
-    <section className="bg-green-50 pb-20 px-6">
-      <div className="max-w-5xl mx-auto text-center">
-        <h2 className="text-3xl font-extrabold text-green-900 mb-6">
-          Learn More About Ayurveda and Panchakarma
-        </h2>
-        <div className="aspect-w-16 aspect-h-9 max-w-4xl mx-auto rounded-xl overflow-hidden shadow-lg">
-          <iframe
-            src="https://www.youtube.com/embed/bFtx2kurEvw"
-            title="Ayurveda Introduction"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="w-full h-full"
-          />
-        </div>
+
+    {/* Video Section - Updated with square aspect ratio */}
+<section className="bg-green-50 pb-20 px-6">
+  <div className="max-w-5xl mx-auto text-center">
+    <h2 className="text-3xl font-extrabold text-green-900 mb-6">
+      Learn More About Ayurveda and Panchakarma
+    </h2>
+    {/* Square video container */}
+    <div className="relative w-full max-w-2xl mx-auto aspect-square rounded-xl overflow-hidden shadow-2xl bg-white p-4">
+      <div className="w-full h-full rounded-lg overflow-hidden">
+        <iframe
+          src="https://www.youtube.com/embed/cGU2jOWpEiY?start=0&end=90&si=hzXIc-hc-wiwASfT"
+          title="Ayurveda Introduction"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="w-full h-full object-cover"
+          style={{ minHeight: '100%' }}
+        />
       </div>
-    </section>
+    </div>
+  </div>
+</section>
+
+
 
     {/* Testimonials */}
     <section className="max-w-7xl mx-auto py-24 px-6 sm:px-10 bg-gradient-to-tr from-emerald-50 to-green-50 rounded-xl">
@@ -191,6 +205,7 @@ const Home = () => (
       </div>
     </section>
 
+
     {/* FAQ Section */}
     <section className="max-w-4xl mx-auto px-6 sm:px-10 py-20">
       <h2 className="text-3xl font-bold text-green-900 mb-12 text-center">Frequently Asked Questions</h2>
@@ -220,6 +235,7 @@ const Home = () => (
       </div>
     </section>
 
+
     {/* Call to Action */}
     <section className="bg-gradient-to-r from-green-600 to-emerald-600 py-24 px-6 text-center text-white">
       <h2 className="text-4xl font-extrabold mb-4">Start Your Healing Journey Today</h2>
@@ -234,11 +250,14 @@ const Home = () => (
       </Link>
     </section>
 
+
     <Footer />
+
 
     {/* AyurSutra Bot - Floating Chat Widget */}
     <AyurSutraBot />
   </div>
 );
+
 
 export default Home;
