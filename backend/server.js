@@ -12,6 +12,7 @@ const recordRoutes = require("./routes/recordRoutes");
 const billingRoutes = require("./routes/billingRoutes");
 const therapyRoutes = require("./routes/therapyRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
+const sitemapRoutes = require('./routes/sitemap');
 
 const { errorHandler } = require("./middleware/errorMiddleware");
 
@@ -30,6 +31,7 @@ app.use("/api/records", recordRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/therapy", therapyRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use('/', sitemapRoutes);
 
 app.get("/", (req, res) => {
   res.send(`🌿 AyurSutra API is running in ${process.env.NODE_ENV} mode`);
