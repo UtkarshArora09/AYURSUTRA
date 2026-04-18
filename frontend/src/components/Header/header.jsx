@@ -308,6 +308,7 @@ const Header = () => {
 
       alert(`Logged in as ${user.name} (${user.role})`);
       closeModal();
+      navigate(getDashboardRoute(user.role));
     } catch (err) {
       console.error("Patient login error:", err);
       alert("Login failed: " + err.message);
@@ -386,6 +387,7 @@ const Header = () => {
 
       alert(`Logged in as ${userDataSafe.name} (${userDataSafe.role})`);
       closeModal();
+      navigate(getDashboardRoute(userDataSafe.role));
     } catch (error) {
       console.error("Login error:", error);
       alert("Login failed: " + error.message);
