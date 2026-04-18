@@ -45,6 +45,9 @@ app.get("/", (req, res) => {
 
 app.use(errorHandler);
 
+// Initialize DB Tables
+require("./config/init-db")();
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(
