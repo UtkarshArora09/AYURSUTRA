@@ -361,20 +361,23 @@ const Header = () => {
 
       const data = await response.json();
 
+      // Dynamically handle payload if backend returns 'patient', 'doctor', 'admin', or 'user'
+      const activeUser = data.user || data.patient || data.doctor || data.admin || data;
+
       // Safely construct full name
       const fullName =
-        `${data.user?.first_name || data.user?.name || ""} ${
-          data.user?.last_name || ""
+        `${activeUser?.first_name || activeUser?.name || ""} ${
+          activeUser?.last_name || ""
         }`.trim() ||
-        data.user?.email ||
+        activeUser?.email ||
         "User";
 
       // Ensure role is properly capitalized
       const userDataSafe = {
-        ...data.user,
+        ...activeUser,
         name: fullName,
-        role: data.user?.role
-          ? data.user.role.charAt(0).toUpperCase() + data.user.role.slice(1)
+        role: activeUser?.role
+          ? activeUser.role.charAt(0).toUpperCase() + activeUser.role.slice(1)
           : roleStr.charAt(0).toUpperCase() + roleStr.slice(1),
       };
 

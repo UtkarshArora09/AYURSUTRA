@@ -1,4 +1,5 @@
 const pool = require("./db");
+const bcrypt = require("bcryptjs");
 
 const createTables = async () => {
   const queryText = `
@@ -80,8 +81,36 @@ const createTables = async () => {
   `;
 
   try {
-    const res = await pool.query(queryText);
+    await pool.query(queryText);
     console.log("✅ Database tables successfully initialized / verified.");
+
+    // Seed Admin
+    const adminPassword = await bcrypt.hash("@Ayadmin123", 10);
+    await pool.query(
+      `INSERT INTO admins (name, email, password, role) 
+       VALUES ($1, $2, $3, 'admin') 
+       ON CONFLICT (email) DO NOTHING;`,
+      ["AyurAdmin", "adayur108@gmail.com", adminPassword]
+    );
+
+    // Seed Doctor
+    const docPassword = await bcrypt.hash("@priya123", 10);
+    await pool.query(
+      `INSERT INTO doctors (name, email, password, phone, specialization, experience_years, qualification, clinic_address, role) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'doctor') 
+       ON CONFLICT (email) DO NOTHING;`,
+      [
+        "Dr. Priya Singh",
+        "priya@example.com",
+        docPassword,
+        "9876543332",
+        "Mixed Dosha Specialist",
+        7,
+        "MBBS, MD",
+        "456 Shiv Vihar, Delhi City",
+      ]
+    );
+    console.log("✅ Seed accounts verified.");
   } catch (err) {
     console.error("❌ Error initializing database tables:", err.message);
   }

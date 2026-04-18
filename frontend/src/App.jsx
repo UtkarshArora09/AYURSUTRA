@@ -16,6 +16,7 @@ import QueueTrends from "./pages/QueueTrends";
 import DoctorDashboard from "./components/DoctorDashboard";
 import PatientDashboard from "./components/PatientDashboard";
 import ResetPassword from "./pages/newpassword";
+import Reports from "./pages/Reports";
 
 function App() {
   return (
@@ -57,6 +58,9 @@ function App() {
 
             {/* New password */}
             <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+            {/* Reports */}
+            <Route path="/reports" element={<Reports />} />
 
             {/* 404 catch-all */}
             <Route
