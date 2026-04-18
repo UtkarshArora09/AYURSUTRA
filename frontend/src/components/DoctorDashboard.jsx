@@ -51,7 +51,7 @@ const DoctorDashboard = () => {
   const fetchDoctorData = async () => {
     try {
       const response = await fetch(
-        `https://ayursutra-qhp0.onrender.com/api/doctors/Ayur_doc3`
+        `https://ayursutra-tox3.onrender.com/api/doctors/Ayur_doc3`
       );
 
       if (!response.ok) {

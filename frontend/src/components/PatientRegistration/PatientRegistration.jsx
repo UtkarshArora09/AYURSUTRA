@@ -152,7 +152,7 @@ const PatientRegistration = ({ generatedPatientId }) => {
           .toString()
           .padStart(3, "0");
 
-    fetch("https://ayursutra-qhp0.onrender.com/api/patients/auth/register", {
+    fetch("https://ayursutra-tox3.onrender.com/api/patients/auth/register", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

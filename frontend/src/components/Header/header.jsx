@@ -276,7 +276,7 @@ const Header = () => {
     }
 
     try {
-      const res = await fetch("https://ayursutra-qhp0.onrender.com/api/patients/auth/login", {
+      const res = await fetch("https://ayursutra-tox3.onrender.com/api/patients/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -342,7 +342,7 @@ const Header = () => {
         throw new Error("Invalid role selected");
       }
 
-      const baseURL = "https://ayursutra-qhp0.onrender.com"; // adjust if your backend URL is different
+      const baseURL = "https://ayursutra-tox3.onrender.com"; // adjust if your backend URL is different
 
       // Make POST request to backend
       const response = await fetch(baseURL + endpoint, {
@@ -396,7 +396,7 @@ const Header = () => {
     e.preventDefault();
     try {
       const response = await fetch(
-        "https://ayursutra-qhp0.onrender.com/api/patients/auth/forgot-password",
+        "https://ayursutra-tox3.onrender.com/api/patients/auth/forgot-password",
         {
           method: "POST",
           headers: {

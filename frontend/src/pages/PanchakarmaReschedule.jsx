@@ -106,7 +106,7 @@ const PanchakarmaReschedule = () => {
 
     try {
       const response = await fetch(
-        "https://ayursutra-qhp0.onrender.com/api/bookings/search",
+        "https://ayursutra-tox3.onrender.com/api/bookings/search",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
