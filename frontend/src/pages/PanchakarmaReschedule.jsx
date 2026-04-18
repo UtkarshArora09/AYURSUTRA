@@ -51,15 +51,14 @@ const PanchakarmaReschedule = () => {
   const mockAppointment = {
     bookingId: "PCK-1726308000000",
     patientId: "AYR-2024-001",
-    patientId: "AYR-2024-001",
     aadharNumber: "1234-5678-9012",
     mobileNumber: "+91 9876543210",
     currentDate: "2025-09-20",
     currentTime: "10:30",
     doshaType: "vata",
     doctor: {
-      id: 1,
       id: "DOC-001",
+      name: "Dr. Ananya Sharma",
       specialization: "Panchakarma Specialist",
       avatar: "https://randomuser.me/api/portraits/women/45.jpg",
     },
