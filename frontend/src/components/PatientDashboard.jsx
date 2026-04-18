@@ -18,7 +18,18 @@ const PatientDashboard = () => {
   useEffect(() => {
     const fetchPatientData = async () => {
       try {
-        const response = await fetch("https://ayursutra-tox3.onrender.com/api/patients/19");
+        const userRaw = localStorage.getItem("ayursutra_user");
+        let patientId = "";
+        if (userRaw) {
+          try {
+            const user = JSON.parse(userRaw);
+            patientId = user.id || user.patient_id || user.patientId || "";
+          } catch (e) {}
+        }
+        
+        if (!patientId) throw new Error("No authenticated patient ID found");
+
+        const response = await fetch(`https://ayursutra-tox3.onrender.com/api/patients/${patientId}`);
         if (!response.ok) {
           throw new Error("Failed to fetch patient data");
         }

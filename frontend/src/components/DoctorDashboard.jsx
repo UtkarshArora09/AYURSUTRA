@@ -50,8 +50,18 @@ const DoctorDashboard = () => {
   // 🔹 Fetch logged-in doctor data
   const fetchDoctorData = async () => {
     try {
+      const userRaw = localStorage.getItem("ayursutra_user");
+      let docId = "";
+      if (userRaw) {
+        try {
+          const user = JSON.parse(userRaw);
+          docId = user.id || user.doctor_id || user.doctorId || "";
+        } catch (e) {}
+      }
+      if (!docId) throw new Error("No authenticated doctor ID found");
+
       const response = await fetch(
-        `https://ayursutra-tox3.onrender.com/api/doctors/Ayur_doc3`
+        `https://ayursutra-tox3.onrender.com/api/doctors/${docId}`
       );
 
       if (!response.ok) {
