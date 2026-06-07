@@ -15,6 +15,7 @@ import QueueRescheduleCancel from "./components/QueueRescheduleCancel";
 import QueueTrends from "./pages/QueueTrends";
 import DoctorDashboard from "./components/DoctorDashboard";
 import PatientDashboard from "./components/PatientDashboard";
+import AdminDashboard from "./components/AdminDashboard";
 import ResetPassword from "./pages/newpassword";
 import Reports from "./pages/Reports";
 
@@ -55,6 +56,7 @@ function App() {
             <Route path="/queuetrends" element={<QueueTrends />} />
             <Route path="/patient-dashboard" element={<PatientDashboard />} />
             <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
 
             {/* New password */}
             <Route path="/reset-password" element={<ResetPassword />} />
