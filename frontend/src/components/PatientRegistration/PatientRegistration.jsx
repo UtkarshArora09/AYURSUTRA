@@ -161,12 +161,17 @@ const PatientRegistration = ({ generatedPatientId }) => {
       body: JSON.stringify(registrationData),
     })
       .then(async (response) => {
-        const data = await response.json(); // parse json once
-        if (!response.ok) {
-          // If not ok, throw error with message from backend
-          throw new Error(data.message || "Network response was not ok");
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (e) {
+          // Response was not JSON
         }
-        return data; // return data for next then()
+        if (!response.ok) {
+          const errMsg = data?.message || data?.error || `Network Error: ${response.status} ${response.statusText}`;
+          throw new Error(errMsg);
+        }
+        return data;
       })
       .then((data) => {
         alert(data.message || "Patient registered successfully!");
