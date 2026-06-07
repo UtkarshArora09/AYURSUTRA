@@ -3,6 +3,7 @@ import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const genders = ["Male", "Female", "Other", "Prefer not to say"];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 const PatientRegistration = ({ generatedPatientId }) => {
   const [formData, setFormData] = useState({
@@ -152,7 +153,7 @@ const PatientRegistration = ({ generatedPatientId }) => {
           .toString()
           .padStart(3, "0");
 
-    fetch("https://ayursutra-tox3.onrender.com/api/patients/auth/register", {
+    fetch(`${API_BASE_URL}/api/patients/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

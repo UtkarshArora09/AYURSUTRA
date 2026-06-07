@@ -13,6 +13,8 @@ import {
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 const PanchakarmaReschedule = () => {
   const [step, setStep] = useState(1); // 1: Search, 2: Appointment Details, 3: Action Selection, 4: Reschedule, 5: Confirmation
   const [action, setAction] = useState(""); // 'reschedule' or 'cancel'
@@ -106,7 +108,7 @@ const PanchakarmaReschedule = () => {
 
     try {
       const response = await fetch(
-        "https://ayursutra-tox3.onrender.com/api/bookings/search",
+        `${API_BASE_URL}/api/bookings/search`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

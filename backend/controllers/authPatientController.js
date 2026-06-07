@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const { getJwtSecret } = require("../config/auth");
 
 // Register Patient
 exports.registerPatient = async (req, res) => {
@@ -114,7 +115,7 @@ exports.loginPatient = async (req, res) => {
 
     const token = jwt.sign(
       { id: patient.patient_id, role: "patient" },
-      process.env.JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: "1d" }
     );
 
@@ -154,7 +155,8 @@ exports.forgotPassword = async (req, res) => {
       },
     });
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
     const mailOptions = {
       from: process.env.EMAIL_USER,

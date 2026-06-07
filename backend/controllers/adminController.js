@@ -6,6 +6,7 @@ const Doctor = require("../models/doctorModel");
 const Therapist = require("../models/therapistModel");
 const Patient = require("../models/patientModel");
 const Therapy = require("../models/therapyModel");
+const { getJwtSecret } = require("../config/auth");
 
 exports.loginAdmin = async (req, res) => {
   try {
@@ -25,7 +26,7 @@ exports.loginAdmin = async (req, res) => {
 
     const token = jwt.sign(
       { id: admin.id || admin.admin_id, role: "admin" },
-      process.env.JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: "1d" }
     );
 

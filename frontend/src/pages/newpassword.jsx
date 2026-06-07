@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate, Link } from "react-router-dom";
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -11,12 +11,15 @@ import {
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
+  const { token: tokenParam } = useParams();
   const navigate = useNavigate();
 
   // Get token and email from URL parameters
-  const token = searchParams.get("token");
+  const token = searchParams.get("token") || tokenParam;
   const email = searchParams.get("email");
 
   const [formData, setFormData] = useState({
@@ -45,7 +48,7 @@ const ResetPassword = () => {
       }
 
       try {
-        const response = await fetch("/api/auth/verify-reset-token", {
+        const response = await fetch(`${API_BASE_URL}/api/patients/verify-reset-token`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token, email }),
@@ -175,7 +178,7 @@ const ResetPassword = () => {
     }
 
     try {
-      const response = await fetch("/api/auth/reset-password", {
+      const response = await fetch(`${API_BASE_URL}/api/patients/auth/reset-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

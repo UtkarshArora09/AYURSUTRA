@@ -1,6 +1,7 @@
 const Therapist = require("../models/therapistModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { getJwtSecret } = require("../config/auth");
 
 // // Register a new therapist
 // exports.registerTherapist = async (req, res) => {
@@ -63,7 +64,7 @@ exports.loginTherapist = async (req, res) => {
     // Create JWT token
     const token = jwt.sign(
       { id: therapist.id || therapist.therapist_id, role: "therapist" },
-      process.env.JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: "1d" }
     );
 

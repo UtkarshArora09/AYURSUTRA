@@ -13,6 +13,8 @@ import {
 
 import PatientRegistration from "../../components/PatientRegistration/PatientRegistration";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 const Header = () => {
   const navigate = useNavigate();
 
@@ -163,7 +165,7 @@ const Header = () => {
   // NEW: Handle patient registration navigation
   const handlePatientRegistration = () => {
     closeModal(); // Close the login modal
-    navigate("/patients"); // Navigate to patient registration page
+    navigate("/patients/register"); // Navigate to patient registration page
   };
 
   // Navigation items with conditional dashboard
@@ -276,7 +278,7 @@ const Header = () => {
     }
 
     try {
-      const res = await fetch("https://ayursutra-tox3.onrender.com/api/patients/auth/login", {
+      const res = await fetch(`${API_BASE_URL}/api/patients/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -343,10 +345,8 @@ const Header = () => {
         throw new Error("Invalid role selected");
       }
 
-      const baseURL = "https://ayursutra-tox3.onrender.com"; // adjust if your backend URL is different
-
       // Make POST request to backend
-      const response = await fetch(baseURL + endpoint, {
+      const response = await fetch(API_BASE_URL + endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -401,7 +401,7 @@ const Header = () => {
     e.preventDefault();
     try {
       const response = await fetch(
-        "https://ayursutra-tox3.onrender.com/api/patients/auth/forgot-password",
+        `${API_BASE_URL}/api/patients/auth/forgot-password`,
         {
           method: "POST",
           headers: {

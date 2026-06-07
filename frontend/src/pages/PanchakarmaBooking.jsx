@@ -13,6 +13,8 @@ import Footer from "../components/Footer";
 import AppointmentReceipt from "../components/AppointmentReceipt";
 import AyurVaidya from "../components/AyurSutraBot"; // Import Sahayak chatbot
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 const PanchakarmaBooking = () => {
   // Patient data (auto-fetched from backend/database)
   const [patientData, setPatientData] = useState({
@@ -59,7 +61,7 @@ const PanchakarmaBooking = () => {
 
   const fetchDoctors = async () => {
     try {
-      const res = await fetch("https://ayursutra-tox3.onrender.com/api/doctors");
+      const res = await fetch(`${API_BASE_URL}/api/doctors`);
       if (!res.ok) throw new Error("Failed to fetch doctors");
       const data = await res.json();
 
@@ -277,7 +279,7 @@ const PanchakarmaBooking = () => {
 
       console.log("Submitting booking:", bookingData);
 
-      const response = await fetch("https://ayursutra-tox3.onrender.com/api/bookings", {
+      const response = await fetch(`${API_BASE_URL}/api/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingData),

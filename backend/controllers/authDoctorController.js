@@ -1,6 +1,7 @@
 const Doctor = require("../models/doctorModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { getJwtSecret } = require("../config/auth");
 
 // exports.loginDoctor = async (req, res) => {
 //   try {
@@ -50,7 +51,7 @@ exports.loginDoctor = async (req, res) => {
     // ✅ use doctor.id (aliased in model)
     const token = jwt.sign(
       { id: doctor.id, role: "doctor" },
-      process.env.JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: "1d" }
     );
 

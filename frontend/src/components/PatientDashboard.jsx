@@ -11,6 +11,8 @@ import { Droplet } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 const PatientDashboard = () => {
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,7 @@ const PatientDashboard = () => {
         
         if (!patientId) throw new Error("No authenticated patient ID found");
 
-        const response = await fetch(`https://ayursutra-tox3.onrender.com/api/patients/${patientId}`);
+        const response = await fetch(`${API_BASE_URL}/api/patients/${patientId}`);
         if (!response.ok) {
           throw new Error("Failed to fetch patient data");
         }
