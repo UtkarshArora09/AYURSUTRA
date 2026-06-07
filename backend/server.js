@@ -22,8 +22,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
-app.use(express.static(path.join(__dirname, '../frontend')));
 
+// API routes
 app.use("/api/admin", adminRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/doctors", doctorRoutes);
@@ -33,12 +33,9 @@ app.use("/api/records", recordRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/therapy", therapyRoutes);
 app.use("/api/bookings", bookingRoutes);
-app.use('/', sitemapRoutes);
+app.use('/sitemap.xml', sitemapRoutes);
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
-
+// Root health check
 app.get("/", (req, res) => {
   res.send(`🌿 AyurSutra API is running in ${process.env.NODE_ENV} mode`);
 });
@@ -50,7 +47,5 @@ require("./config/init-db")();
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(
-    ` Server running on port ${PORT} in ${process.env.NODE_ENV} mode`
-  );
+  console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
 });
