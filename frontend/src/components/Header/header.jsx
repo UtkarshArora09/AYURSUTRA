@@ -192,12 +192,26 @@ const Header = () => {
           {
             name: "Panchakarma",
             href: "#",
-            action: () => openAppointmentModal("Panchakarma"),
+            action: () => {
+              if (!isLoggedIn) {
+                setLoginRole("patient");
+                setShowLoginModal(true);
+              } else {
+                openAppointmentModal("Panchakarma");
+              }
+            },
           },
           {
             name: "General Appointment",
             href: "#",
-            action: () => openAppointmentModal("General Appointment"),
+            action: () => {
+              if (!isLoggedIn) {
+                setLoginRole("patient");
+                setShowLoginModal(true);
+              } else {
+                openAppointmentModal("General Appointment");
+              }
+            },
           },
         ],
       },
@@ -214,17 +228,27 @@ const Header = () => {
     if (isLoggedIn && userData?.role) {
       const roleLower = userData.role.toLowerCase();
       if (roleLower === "patient") {
-        // Patient sees limited navigation
+        // Patient sees limited navigation: Home, Appointments, Queue, Patient Dashboard, Reports
         return baseItems.filter((item) =>
           ["Home", "Appointments", "Queue", dashboardName, "Reports"].includes(
             item.name
           )
         );
-      } else if (roleLower === "doctor" || roleLower === "admin") {
+      } else if (roleLower === "doctor") {
+        // Doctor sees: Home, Appointments (with Manage Queue), Queue, Doctor Dashboard, Reports
+        return baseItems.filter((item) =>
+          ["Home", "Appointments", "Queue", dashboardName, "Reports"].includes(
+            item.name
+          )
+        );
+      } else if (roleLower === "admin") {
         return baseItems;
       }
     }
-    return baseItems;
+    // If not logged in, they see Home, Patients, Therapies, and we keep Appointments visible so they can click and be prompted to login
+    return baseItems.filter((item) =>
+      ["Home", "Patients", "Therapies", "Appointments"].includes(item.name)
+    );
   };
 
   const navItems = getNavItems();
@@ -259,11 +283,9 @@ const Header = () => {
         navigate("/appointments/panchakarma/reschedule");
     } else if (selectedAppointmentType === "General Appointment") {
       if (action === "Booking") {
-        // *CHANGED*: Redirect to external deployed URL
-        window.location.href = "https://queuecare-backend.vercel.app/user.html";
-        return; // Return early to prevent closing modal immediately
+        navigate("/queue/join");
       } else if (action === "Reschedule/Cancel") {
-        window.location.href = "https://queuecare-backend.vercel.app/admin.html";
+        navigate("/queue/manage");
       }
     }
     closeAppointmentModal();
@@ -952,6 +974,7 @@ const Header = () => {
           selectedAppointmentType={selectedAppointmentType}
           closeAppointmentModal={closeAppointmentModal}
           handleAppointmentAction={handleAppointmentAction}
+          userRole={userData?.role}
         />
       )}
     </>
@@ -1235,71 +1258,102 @@ const AppointmentModal = ({
   selectedAppointmentType,
   closeAppointmentModal,
   handleAppointmentAction,
-}) => (
-  <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-md">
-    <div className="absolute inset-0" onClick={closeAppointmentModal}></div>
-    <div
-      className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm w-full max-h-[320px] overflow-y-auto"
-      onClick={(e) => e.stopPropagation()}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="appointment-modal-title"
-    >
-      <button
-        aria-label="Close appointment modal"
-        onClick={closeAppointmentModal}
-        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-600 rounded"
-      >
-        <XMarkIcon className="w-6 h-6" />
-      </button>
-      <h2
-        id="appointment-modal-title"
-        className="text-xl text-center font-bold mb-6"
-      >
-        {selectedAppointmentType} Appointments
-      </h2>
+  userRole,
+}) => {
+  const roleLower = userRole?.toLowerCase();
+  
+  const showPanchakarmaBooking = selectedAppointmentType === "Panchakarma" && (roleLower === "patient" || roleLower === "admin");
+  const showPanchakarmaReschedule = selectedAppointmentType === "Panchakarma" && (roleLower === "patient" || roleLower === "admin");
+  
+  const showGeneralJoin = selectedAppointmentType === "General Appointment" && (roleLower === "patient" || roleLower === "admin");
+  const showGeneralManage = selectedAppointmentType === "General Appointment" && (roleLower === "doctor" || roleLower === "admin");
 
-      <div className="flex flex-col space-y-6">
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-md">
+      <div className="absolute inset-0" onClick={closeAppointmentModal}></div>
+      <div
+        className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm w-full max-h-[350px] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="appointment-modal-title"
+      >
         <button
-          onClick={() => handleAppointmentAction("Booking")}
-          className="w-full py-3 rounded-md font-semibold bg-green-600 text-white 
-            hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-400 transition relative"
-          type="button"
-          aria-describedby="booking-desc"
+          aria-label="Close appointment modal"
+          onClick={closeAppointmentModal}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-600 rounded"
         >
-          {selectedAppointmentType === "Panchakarma" ? "Booking" : "Join Queue"}
-          <p
-            id="booking-desc"
-            className="text-sm text-green-200 mt-1 font-normal select-none pointer-events-none"
-          >
-            {selectedAppointmentType === "Panchakarma"
-              ? "Schedule a new Panchakarma session"
-              : "Join the real-time consultation queue"}
-          </p>
+          <XMarkIcon className="w-6 h-6" />
         </button>
+        <h2
+          id="appointment-modal-title"
+          className="text-xl text-center font-bold mb-6"
+        >
+          {selectedAppointmentType} Appointments
+        </h2>
 
-        <button
-          onClick={() => handleAppointmentAction("Reschedule/Cancel")}
-          className="w-full py-3 rounded-md font-semibold bg-gray-200 text-gray-800 
-            hover:bg-gray-300 focus:outline-none focus:ring-4 focus:ring-gray-400 transition relative"
-          type="button"
-          aria-describedby="reschedule-desc"
-        >
-          {selectedAppointmentType === "Panchakarma"
-            ? "Reschedule/Cancel"
-            : "Manage Queue"}
-          <p
-            id="reschedule-desc"
-            className="text-sm text-gray-600 mt-1 font-normal select-none pointer-events-none"
-          >
-            {selectedAppointmentType === "Panchakarma"
-              ? "Modify or cancel your existing appointment"
-              : "Reschedule or cancel your queue position"}
-          </p>
-        </button>
+        <div className="flex flex-col space-y-4">
+          {selectedAppointmentType === "Panchakarma" && (
+            <>
+              {showPanchakarmaBooking && (
+                <button
+                  onClick={() => handleAppointmentAction("Booking")}
+                  className="w-full py-3 rounded-md font-semibold bg-green-600 text-white hover:bg-green-700"
+                  type="button"
+                >
+                  Booking
+                  <p className="text-sm text-green-200 mt-1 font-normal">
+                    Schedule a new Panchakarma session
+                  </p>
+                </button>
+              )}
+              {showPanchakarmaReschedule && (
+                <button
+                  onClick={() => handleAppointmentAction("Reschedule/Cancel")}
+                  className="w-full py-3 rounded-md font-semibold bg-gray-200 text-gray-800 hover:bg-gray-300"
+                  type="button"
+                >
+                  Reschedule/Cancel
+                  <p className="text-sm text-gray-600 mt-1 font-normal">
+                    Modify or cancel your existing appointment
+                  </p>
+                </button>
+              )}
+            </>
+          )}
+
+          {selectedAppointmentType === "General Appointment" && (
+            <>
+              {showGeneralJoin && (
+                <button
+                  onClick={() => handleAppointmentAction("Booking")}
+                  className="w-full py-3 rounded-md font-semibold bg-green-600 text-white hover:bg-green-700"
+                  type="button"
+                >
+                  Join Queue
+                  <p className="text-sm text-green-200 mt-1 font-normal">
+                    Join the real-time consultation queue
+                  </p>
+                </button>
+              )}
+              {showGeneralManage && (
+                <button
+                  onClick={() => handleAppointmentAction("Reschedule/Cancel")}
+                  className="w-full py-3 rounded-md font-semibold bg-green-700 text-white hover:bg-green-800"
+                  type="button"
+                >
+                  Manage Queue
+                  <p className="text-sm text-green-200 mt-1 font-normal">
+                    Manage real-time digital consultation queue
+                  </p>
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default Header;

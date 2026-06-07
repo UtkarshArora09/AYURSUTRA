@@ -1,939 +1,717 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ClockIcon,
-  UserGroupIcon,
   CheckCircleIcon,
   InformationCircleIcon,
   BuildingOffice2Icon,
-  IdentificationIcon,
   PhoneIcon,
-  ExclamationTriangleIcon,
-  WifiIcon,
-  SignalIcon,
+  UserIcon,
+  CalendarIcon,
+  QrCodeIcon,
+  ArrowRightStartOnRectangleIcon,
+  PrinterIcon,
 } from "@heroicons/react/24/outline";
-import Header from "../components/Header";
+
+const FIREBASE_DB_URL = "https://digital-queue-system-ca4a3-default-rtdb.firebaseio.com";
+
+const hospitals = [
+  "Promhex Multispeciality Hospital",
+  "Felix Hospital - Greater Noida",
+  "Riverdale Healthcare",
+  "Yatharth Super Speciality Hospital",
+  "Apollo Spectra Hospital",
+];
+
+const services = [
+  { name: "General Consultation", desc: "Routine health checks and consultations", icon: "🩺" },
+  { name: "Pediatrics", desc: "Specialized care for children and infants", icon: "👶" },
+  { name: "Blood Test", desc: "Diagnostic blood tests and investigations", icon: "🩸" },
+  { name: "Diagnostic Imaging", desc: "X-Rays, Ultrasounds, and scans", icon: "🩻" },
+  { name: "Dental Checkup", desc: "Complete oral care and hygiene", icon: "🦷" },
+  { name: "Eye Examination", desc: "Vision tests and eye health assessments", icon: "👁️" },
+  { name: "Cardiology", desc: "Heart checkups and cardiovascular care", icon: "❤️" },
+  { name: "Vaccination", desc: "Immunization and preventive vaccines", icon: "💉" },
+  { name: "Mental Health", desc: "Counseling and psychological support", icon: "🧠" },
+  { name: "Orthopedics", desc: "Bone, joint, and muscle consultations", icon: "🦴" },
+];
 
 const JoinQueue = () => {
-  const [step, setStep] = useState(1); // 1: Join Queue, 2: Live Queue Status
-  const [loading, setLoading] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState("disconnected");
+  const navigate = useNavigate();
 
-  // WebSocket reference
-  const wsRef = useRef(null);
-
-  // Patient data (auto-fetched from backend/database)
-  const [patientData, setPatientData] = useState({
-    patientId: "AYR-2024-001",
-    name: "John Doe",
-    aadharNumber: "1234-5678-9012",
-  });
+  // Auth / Prefill
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Form states
-  const [formData, setFormData] = useState({
-    mobileNumber: "",
-    selectedDoctor: null,
-    selectedCenter: null,
-    visitReason: "",
-    priority: "normal",
-    symptoms: "",
+  const [selectedHospital, setSelectedHospital] = useState("");
+  const [selectedService, setSelectedService] = useState("");
+  const [patientName, setPatientName] = useState("");
+  const [patientPhone, setPatientPhone] = useState("");
+  const [appointmentDate, setAppointmentDate] = useState(() => {
+    return new Date().toISOString().split("T")[0];
   });
 
-  // Queue data
-  const [queueData, setQueueData] = useState({
-    tokenNumber: null,
-    currentPosition: 0,
-    totalInQueue: 0,
-    estimatedWaitTime: 0,
-    averageConsultationTime: 15,
-    lastUpdated: null,
-    queueStatus: "waiting",
-  });
+  // Flow / Ticket state
+  const [activeTicket, setActiveTicket] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [currentLivePosition, setCurrentLivePosition] = useState(null);
 
-  // Live queue updates
-  const [liveUpdates, setLiveUpdates] = useState([]);
-  const [currentlyServing, setCurrentlyServing] = useState(null);
-  const [nextPatients, setNextPatients] = useState([]);
-
-  // Mock data
-  const mockDoctors = [
-    {
-      id: 1,
-      name: "Dr. Priya Sharma",
-      specialization: "General Medicine",
-      experience: "15 years",
-      currentQueue: 12,
-      avgWaitTime: "25 min",
-      status: "available",
-      avatar: "https://randomuser.me/api/portraits/women/45.jpg",
-    },
-    {
-      id: 2,
-      name: "Dr. Rajesh Kumar",
-      specialization: "Internal Medicine",
-      experience: "20 years",
-      currentQueue: 8,
-      avgWaitTime: "18 min",
-      status: "available",
-      avatar: "https://randomuser.me/api/portraits/men/35.jpg",
-    },
-    {
-      id: 3,
-      name: "Dr. Meera Patel",
-      specialization: "Family Medicine",
-      experience: "12 years",
-      currentQueue: 15,
-      avgWaitTime: "30 min",
-      status: "available",
-      avatar: "https://randomuser.me/api/portraits/women/32.jpg",
-    },
-  ];
-
-  const mockCenters = [
-    {
-      id: 1,
-      name: "AyurSutra General Clinic - Mumbai",
-      address: "Bandra West, Mumbai, Maharashtra",
-      waitingCapacity: 50,
-      currentWaiting: 23,
-      estimatedDelay: "10 min",
-      status: "normal",
-    },
-    {
-      id: 2,
-      name: "AyurSutra Medical Center - Pune",
-      address: "Koregaon Park, Pune, Maharashtra",
-      waitingCapacity: 40,
-      currentWaiting: 35,
-      estimatedDelay: "15 min",
-      status: "busy",
-    },
-    {
-      id: 3,
-      name: "AyurSutra Wellness Clinic - Delhi",
-      address: "Greater Kailash, New Delhi",
-      waitingCapacity: 60,
-      currentWaiting: 18,
-      estimatedDelay: "5 min",
-      status: "normal",
-    },
-  ];
-
-  const visitReasons = [
-    "General Consultation",
-    "Follow-up Visit",
-    "Symptom Check",
-    "Routine Check-up",
-    "Prescription Renewal",
-    "Second Opinion",
-    "Health Screening",
-    "Other",
-  ];
-
-  // WebSocket connection setup [web:75][web:78]
-  const connectWebSocket = () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-
-    const wsUrl = process.env.REACT_APP_WS_URL || "ws://localhost:8080/queue";
-    wsRef.current = new WebSocket(wsUrl);
-
-    wsRef.current.onopen = () => {
-      console.log("WebSocket connected");
-      setConnectionStatus("connected");
-
-      // Subscribe to queue updates for specific doctor/center
-      if (formData.selectedDoctor && formData.selectedCenter) {
-        const subscribeMessage = {
-          action: "subscribe",
-          doctorId: formData.selectedDoctor.id,
-          centerId: formData.selectedCenter.id,
-          patientId: patientData.patientId,
-        };
-        wsRef.current.send(JSON.stringify(subscribeMessage));
+  // Load user profile and saved ticket
+  useEffect(() => {
+    // 1. Fetch logged-in user
+    const userRaw = localStorage.getItem("ayursutra_user");
+    if (userRaw && userRaw !== "undefined") {
+      try {
+        const parsed = JSON.parse(userRaw);
+        setCurrentUser(parsed);
+        // Prefill form
+        setPatientName(parsed.name || `${parsed.first_name || ""} ${parsed.last_name || ""}`.trim());
+        setPatientPhone(parsed.mobile_number || parsed.phone || "");
+      } catch (err) {
+        console.error("Error parsing user data:", err);
       }
-    };
+    }
 
-    wsRef.current.onmessage = (event) => {
-      handleWebSocketMessage(JSON.parse(event.data));
-      [web, 61];
-    };
+    // 2. Fetch saved ticket from localStorage
+    const savedTicketRaw = localStorage.getItem("ayursutra_current_queue");
+    if (savedTicketRaw) {
+      try {
+        const ticket = JSON.parse(savedTicketRaw);
+        setActiveTicket(ticket);
+      } catch (e) {
+        console.error("Error parsing saved ticket", e);
+      }
+    }
+  }, []);
 
-    wsRef.current.onclose = () => {
-      console.log("WebSocket disconnected");
-      setConnectionStatus("disconnected");
-      // Attempt to reconnect after 3 seconds
-      setTimeout(connectWebSocket, 3000);
-    };
+  // Poll Firebase to check current live position if there is an active ticket
+  useEffect(() => {
+    if (!activeTicket) return;
 
-    wsRef.current.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setConnectionStatus("error");
-    };
-  };
-
-  // Handle real-time WebSocket messages [web:61][web:65]
-  const handleWebSocketMessage = (data) => {
-    switch (data.type) {
-      case "queue_update":
-        setQueueData((prev) => ({
-          ...prev,
-          ...data.queueData,
-          lastUpdated: new Date(),
-        }));
-        break;
-
-      case "position_update":
-        setQueueData((prev) => ({
-          ...prev,
-          currentPosition: data.position,
-          estimatedWaitTime: data.estimatedWaitTime,
-          lastUpdated: new Date(),
-        }));
-        break;
-
-      case "currently_serving":
-        setCurrentlyServing(data.patient);
-        break;
-
-      case "next_patients":
-        setNextPatients(data.patients);
-        break;
-
-      case "live_update":
-        setLiveUpdates((prev) => [data.update, ...prev.slice(0, 9)]); // Keep last 10 updates
-        break;
-
-      case "call_patient":
-        if (data.patientId === patientData.patientId) {
-          // Patient is being called
-          setQueueData((prev) => ({
-            ...prev,
-            queueStatus: "called",
-          }));
-          // Show notification or alert
-          showNotification(
-            "Your turn! Please proceed to the consultation room.",
-            "success"
-          );
+    const checkLiveStatus = async () => {
+      try {
+        const response = await fetch(`${FIREBASE_DB_URL}/queues/${activeTicket.firebaseDate}.json`);
+        if (!response.ok) throw new Error("Failed to fetch queue status");
+        
+        const data = await response.json();
+        
+        // If the ticket has been deleted (i.e. patient was served or removed by doctor)
+        if (!data || !data[activeTicket.key]) {
+          localStorage.removeItem("ayursutra_current_queue");
+          setActiveTicket(null);
+          setCurrentLivePosition(null);
+          alert("Your queue ticket has been processed or cleared by the coordinator.");
+          return;
         }
-        break;
 
-      default:
-        console.log("Unknown message type:", data.type);
-    }
-  };
+        // Calculate current position: convert to array and sort
+        const list = Object.keys(data).map(k => ({
+          id: k,
+          ...data[k],
+        }));
 
-  // Show browser notification [web:61]
-  const showNotification = (message, type = "info") => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("AyurSutra Queue Update", {
-        body: message,
-        icon: "/assets/logo.jpg",
-        tag: "queue-update",
-      });
-    }
+        list.sort((a, b) => {
+          if (a.priority === "emergency" && b.priority !== "emergency") return -1;
+          if (b.priority === "emergency" && a.priority !== "emergency") return 1;
+          return (a.timestamp || 0) - (b.timestamp || 0);
+        });
 
-    // Also show in-app notification (you can implement a toast system)
-    alert(message);
-  };
-
-  // Request notification permission
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
-
-  // Initialize WebSocket connection
-  useEffect(() => {
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
+        // Find patient index
+        const idx = list.findIndex(item => item.id === activeTicket.key);
+        if (idx !== -1) {
+          const livePos = idx + 1;
+          setCurrentLivePosition(livePos);
+          
+          // Check if priority changed to emergency
+          if (list[idx].priority === "emergency" && activeTicket.priority !== "emergency") {
+            setActiveTicket(prev => ({
+              ...prev,
+              priority: "emergency"
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Error checking live position:", err);
       }
     };
-  }, []);
 
-  // Handle form submission to join queue
+    // Run immediately and then poll every 4 seconds
+    checkLiveStatus();
+    const interval = setInterval(checkLiveStatus, 4000);
+    return () => clearInterval(interval);
+  }, [activeTicket]);
+
+  // Handle Form Submission (Join Queue)
   const handleJoinQueue = async (e) => {
     e.preventDefault();
+
+    if (!patientName.trim()) {
+      alert("Please enter a patient name.");
+      return;
+    }
+    if (!patientPhone.trim() || patientPhone.length < 10) {
+      alert("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (!selectedHospital) {
+      alert("Please select a hospital branch.");
+      return;
+    }
+    if (!selectedService) {
+      alert("Please select a clinical service.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch("/api/queue/join", {
+      // 1. Fetch today's count to establish queue position
+      const date = appointmentDate;
+      const response = await fetch(`${FIREBASE_DB_URL}/queues/${date}.json`);
+      if (!response.ok) throw new Error("Failed to fetch current queues");
+      
+      const data = await response.json();
+      const count = data ? Object.keys(data).length : 0;
+      const nextPosition = count + 1;
+
+      // 2. Build payload
+      const timestamp = Date.now();
+      const payload = {
+        name: patientName,
+        phone: patientPhone,
+        timestamp,
+        date,
+        hospital: selectedHospital,
+        service: selectedService,
+        position: nextPosition,
+        system: "AyurSutra Digital Queue",
+        status: "waiting",
+      };
+
+      // 3. Post to Firebase
+      const postResponse = await fetch(`${FIREBASE_DB_URL}/queues/${date}.json`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...patientData,
-          ...formData,
-          joinTime: new Date().toISOString(),
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      if (!postResponse.ok) throw new Error("Failed to push queue ticket");
+      const result = await postResponse.json();
+      
+      // 4. Save ticket to state & localStorage
+      const ticketInfo = {
+        key: result.name, // Firebase key (e.g. -NJskd...)
+        firebaseDate: date,
+        name: patientName,
+        phone: patientPhone,
+        date,
+        hospital: selectedHospital,
+        service: selectedService,
+        position: nextPosition,
+        timestamp,
+      };
 
-        // Update queue data with server response
-        setQueueData({
-          tokenNumber: result.tokenNumber,
-          currentPosition: result.position,
-          totalInQueue: result.totalInQueue,
-          estimatedWaitTime: result.estimatedWaitTime,
-          averageConsultationTime: result.avgConsultationTime,
-          lastUpdated: new Date(),
-          queueStatus: "waiting",
-        });
-
-        // Connect to WebSocket for real-time updates
-        connectWebSocket();
-
-        setStep(2);
-      } else {
-        throw new Error("Failed to join queue");
-      }
-    } catch (error) {
-      console.error("Error joining queue:", error);
-      alert("Failed to join queue. Please try again.");
+      localStorage.setItem("ayursutra_current_queue", JSON.stringify(ticketInfo));
+      setActiveTicket(ticketInfo);
+      setCurrentLivePosition(nextPosition);
+    } catch (err) {
+      console.error(err);
+      alert("Error joining queue: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  // Handle Leave Queue
+  const handleLeaveQueue = async () => {
+    if (!window.confirm("⚠️ Are you sure you want to leave the digital queue?\n\nThis will remove your appointment ticket from the database.")) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await fetch(`${FIREBASE_DB_URL}/queues/${activeTicket.firebaseDate}/${activeTicket.key}.json`, {
+        method: "DELETE",
+      });
+
+      localStorage.removeItem("ayursutra_current_queue");
+      setActiveTicket(null);
+      setCurrentLivePosition(null);
+      
+      // Clear form selections
+      setSelectedService("");
+      alert("You have left the consultation queue.");
+    } catch (err) {
+      console.error("Error leaving queue:", err);
+      alert("Failed to leave queue: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Format time display
-  const formatWaitTime = (minutes) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins} min`;
+  // Handle Printing Ticket
+  const handlePrint = () => {
+    if (!activeTicket) return;
+    const printWindow = window.open("", "_blank");
+    const ticketPosition = currentLivePosition || activeTicket.position;
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>AyurSutra Queue Ticket</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: 'Inter', Arial, sans-serif; 
+              background: #f0fdf4;
+              padding: 20px;
+              color: #14532d;
+            }
+            .ticket { 
+              width: 380px;
+              margin: 0 auto;
+              border: 4px solid #16a34a; 
+              border-radius: 20px; 
+              padding: 25px; 
+              background: white;
+              box-shadow: 0 10px 30px rgba(22, 163, 74, 0.15);
+              position: relative;
+              overflow: hidden;
+            }
+            .ticket::before {
+              content: '';
+              position: absolute;
+              top: -10px;
+              left: 20px;
+              right: 20px;
+              height: 20px;
+              background: repeating-linear-gradient(
+                90deg,
+                #16a34a 0px,
+                #16a34a 10px,
+                transparent 10px,
+                transparent 20px
+              );
+              border-radius: 10px 10px 0 0;
+            }
+            .header { 
+              text-align: center; 
+              color: #16a34a; 
+              border-bottom: 3px solid #bbf7d0; 
+              padding-bottom: 15px; 
+              margin-bottom: 20px;
+            }
+            .header h1 {
+              font-size: 1.8rem;
+              font-weight: 700;
+              margin-bottom: 5px;
+            }
+            .header h2 {
+              font-size: 1.1rem;
+              font-weight: 600;
+              color: #15803d;
+            }
+            .info-row {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin: 12px 0;
+              padding: 8px 0;
+              border-bottom: 1px solid #f3f4f6;
+              font-size: 14px;
+            }
+            .info-row:last-child {
+              border-bottom: none;
+            }
+            .info-label {
+              color: #15803d;
+              font-weight: 600;
+            }
+            .info-value {
+              color: #14532d;
+              font-weight: 500;
+              text-align: right;
+            }
+            .queue-highlight {
+              background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+              padding: 15px;
+              border-radius: 12px;
+              margin: 15px 0;
+              text-align: center;
+            }
+            .queue-number {
+              font-size: 2rem;
+              font-weight: 800;
+              color: #16a34a;
+            }
+            .footer { 
+              margin-top: 20px; 
+              font-size: 11px; 
+              color: #15803d; 
+              text-align: center;
+            }
+            .status {
+              background: #16a34a;
+              color: white;
+              padding: 6px 12px;
+              border-radius: 20px;
+              font-size: 11px;
+              font-weight: 600;
+              display: inline-block;
+              margin-top: 8px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="ticket">
+            <div class="header">
+              <h1>🌿 AyurSutra</h1>
+              <h2>Digital Queue Ticket</h2>
+            </div>
+            <div class="info-row">
+              <span class="info-label">👤 Patient:</span>
+              <span class="info-value">${activeTicket.name}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">📱 Phone:</span>
+              <span class="info-value">${activeTicket.phone}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">📅 Date:</span>
+              <span class="info-value">${activeTicket.date}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">🏥 Hospital:</span>
+              <span class="info-value">${activeTicket.hospital}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">⚕️ Service:</span>
+              <span class="info-value">${activeTicket.service}</span>
+            </div>
+            <div class="queue-highlight">
+              <div style="font-size: 13px; color: #15803d; margin-bottom: 5px;">Queue Position</div>
+              <div class="queue-number">#${ticketPosition}</div>
+            </div>
+            <div class="footer">
+              <p>• Please arrive 15 minutes early</p>
+              <p>• Present at reception desk</p>
+              <div class="status">CONFIRMED APPOINTMENT</div>
+              <p style="margin-top: 8px; font-style: italic;">
+                Issued: ${new Date(activeTicket.timestamp).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
   };
 
-  // Get queue status color
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "waiting":
-        return "blue";
-      case "called":
-        return "green";
-      case "delayed":
-        return "yellow";
-      case "cancelled":
-        return "red";
-      default:
-        return "gray";
-    }
+  // Get WhatsApp Link
+  const getWhatsAppLink = () => {
+    if (!activeTicket) return "#";
+    const ticketPosition = currentLivePosition || activeTicket.position;
+    
+    const message = `🌿 *AyurSutra Digital Queue System*
+
+🎟️ *Your Healthcare Appointment Confirmed*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 *Patient:* ${activeTicket.name}
+📱 *Phone:* ${activeTicket.phone}
+📅 *Date:* ${activeTicket.date}
+🏥 *Hospital:* ${activeTicket.hospital}
+⚕️ *Service:* ${activeTicket.service}
+🔢 *Queue Position:* #${ticketPosition}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 *Important Instructions:*
+• Please arrive 15 minutes early
+• Show this message at reception
+• Keep phone ready for updates
+
+🌿 *AyurSutra Healthcare*
+Helpline: 1800-AYUR-CARE`;
+
+    return `https://wa.me/?text=${encodeURIComponent(message)}`;
+  };
+
+  // QR Code String
+  const getQrDataString = () => {
+    if (!activeTicket) return "";
+    const ticketPosition = currentLivePosition || activeTicket.position;
+    return encodeURIComponent(`🌿 AyurSutra Digital Queue Ticket
+👤 Patient: ${activeTicket.name}
+📱 Phone: ${activeTicket.phone}
+📅 Date: ${activeTicket.date}
+🏥 Hospital: ${activeTicket.hospital}
+⚕️ Service: ${activeTicket.service}
+🎟️ Position: #${ticketPosition}`);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
-      <Header />
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-green-50 pt-24 pb-12 px-4 md:px-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-green-900 mb-2 flex items-center justify-center gap-2">
+            🌿 AyurSutra Digital Queue
+          </h1>
+          <p className="text-emerald-700 text-sm md:text-base font-medium max-w-xl mx-auto">
+            Skip the physical waiting lines. Secure your real-time consultation position instantly.
+          </p>
+        </div>
 
-      <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-blue-900 mb-4">
-              {step === 1 ? "Join Doctor Queue" : "Live Queue Status"}
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              {step === 1
-                ? "Select your doctor and join the real-time queue for general consultation"
-                : "Track your position and get real-time updates without refreshing the page"}
-            </p>
-          </div>
-
-          {step === 1 && (
-            /* Step 1: Join Queue Form */
-            <div className="bg-white rounded-2xl shadow-xl p-8">
-              <form onSubmit={handleJoinQueue} className="space-y-8">
-                {/* Patient Information (Auto-fetched) */}
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                    Patient Information
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Patient ID
-                      </label>
-                      <input
-                        type="text"
-                        value={patientData.patientId}
-                        readOnly
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        value={patientData.name}
-                        readOnly
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Aadhar Number
-                      </label>
-                      <input
-                        type="text"
-                        value={patientData.aadharNumber}
-                        readOnly
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Mobile Number */}
-                  <div className="mt-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Mobile Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.mobileNumber}
-                      onChange={(e) =>
-                        handleInputChange("mobileNumber", e.target.value)
-                      }
-                      required
-                      placeholder="+91 9876543210"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+        {activeTicket ? (
+          /* ================= PHASE 2: TICKET VIEW ================= */
+          <div className="space-y-6">
+            {/* Live Status Banner */}
+            <div className="bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl p-6 shadow-lg border border-emerald-400 text-center animate-pulse-subtle">
+              <CheckCircleIcon className="w-12 h-12 mx-auto mb-2 text-white" />
+              <h3 className="text-lg md:text-xl font-bold">Successfully Joined Queue!</h3>
+              <div className="mt-4 flex flex-col md:flex-row gap-4 justify-center items-center text-sm font-medium">
+                <div className="bg-white/20 px-4 py-2 rounded-xl">
+                  Live Position: <strong className="text-yellow-200 text-base">#{currentLivePosition || activeTicket.position}</strong>
                 </div>
-
-                {/* Doctor Selection */}
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                    Choose Doctor
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {mockDoctors.map((doctor) => (
-                      <div
-                        key={doctor.id}
-                        onClick={() =>
-                          handleInputChange("selectedDoctor", doctor)
-                        }
-                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                          formData.selectedDoctor?.id === doctor.id
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 hover:border-blue-300 hover:bg-blue-25"
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3 mb-3">
-                          <img
-                            src={doctor.avatar}
-                            alt={doctor.name}
-                            className="w-12 h-12 rounded-full object-cover"
-                          />
-                          <div>
-                            <h4 className="font-semibold text-gray-800">
-                              {doctor.name}
-                            </h4>
-                            <p className="text-sm text-blue-600">
-                              {doctor.specialization}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                          <div className="flex items-center">
-                            <UserGroupIcon className="w-3 h-3 mr-1" />
-                            <span>{doctor.currentQueue} in queue</span>
-                          </div>
-                          <div className="flex items-center">
-                            <ClockIcon className="w-3 h-3 mr-1" />
-                            <span>~{doctor.avgWaitTime}</span>
-                          </div>
-                        </div>
-
-                        <div
-                          className={`mt-2 px-2 py-1 rounded-full text-xs text-center ${
-                            doctor.status === "available"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {doctor.status === "available"
-                            ? "✓ Available"
-                            : "⚠ Busy"}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="bg-white/20 px-4 py-2 rounded-xl">
+                  Est. Wait: <strong className="text-yellow-200 text-base">{(currentLivePosition || activeTicket.position) * 5} mins</strong>
                 </div>
-
-                {/* Center Selection */}
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                    Choose Center
-                  </h3>
-                  <div className="space-y-4">
-                    {mockCenters.map((center) => (
-                      <div
-                        key={center.id}
-                        onClick={() =>
-                          handleInputChange("selectedCenter", center)
-                        }
-                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                          formData.selectedCenter?.id === center.id
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 hover:border-blue-300"
-                        }`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-800 flex items-center">
-                              <BuildingOffice2Icon className="w-5 h-5 mr-2 text-blue-600" />
-                              {center.name}
-                            </h4>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {center.address}
-                            </p>
-
-                            <div className="flex items-center space-x-4 mt-3 text-sm">
-                              <span className="text-gray-600">
-                                Waiting: {center.currentWaiting}/
-                                {center.waitingCapacity}
-                              </span>
-                              <span className="text-gray-600">
-                                Delay: {center.estimatedDelay}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div
-                            className={`px-3 py-1 rounded-full text-xs ${
-                              center.status === "normal"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {center.status === "normal" ? "Normal" : "Busy"}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                {activeTicket.priority === "emergency" && (
+                  <div className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold animate-bounce">
+                    🚨 EMERGENCY PRIORITY
                   </div>
-                </div>
-
-                {/* Visit Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reason for Visit <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={formData.visitReason}
-                      onChange={(e) =>
-                        handleInputChange("visitReason", e.target.value)
-                      }
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select reason...</option>
-                      {visitReasons.map((reason) => (
-                        <option key={reason} value={reason}>
-                          {reason}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Priority Level
-                    </label>
-                    <select
-                      value={formData.priority}
-                      onChange={(e) =>
-                        handleInputChange("priority", e.target.value)
-                      }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="urgent">Urgent</option>
-                      <option value="emergency">Emergency</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Brief Symptoms (Optional)
-                  </label>
-                  <textarea
-                    value={formData.symptoms}
-                    onChange={(e) =>
-                      handleInputChange("symptoms", e.target.value)
-                    }
-                    rows={3}
-                    placeholder="Briefly describe your symptoms to help the doctor prepare..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={
-                    !formData.mobileNumber ||
-                    !formData.selectedDoctor ||
-                    !formData.selectedCenter ||
-                    !formData.visitReason ||
-                    loading
-                  }
-                  className="w-full bg-blue-600 text-white py-4 px-6 rounded-xl font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                      Joining Queue...
-                    </>
-                  ) : (
-                    <>
-                      <UserGroupIcon className="w-5 h-5 mr-3" />
-                      Join Queue
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {step === 2 && (
-            /* Step 2: Live Queue Status */
-            <div className="space-y-6">
-              {/* Connection Status */}
-              <div
-                className={`flex items-center justify-center space-x-2 text-sm font-medium ${
-                  connectionStatus === "connected"
-                    ? "text-green-600"
-                    : connectionStatus === "error"
-                    ? "text-red-600"
-                    : "text-yellow-600"
-                }`}
-              >
-                {connectionStatus === "connected" ? (
-                  <>
-                    <SignalIcon className="w-4 h-4 animate-pulse" />
-                    <span>Live updates connected</span>
-                  </>
-                ) : connectionStatus === "error" ? (
-                  <>
-                    <ExclamationTriangleIcon className="w-4 h-4" />
-                    <span>Connection error - retrying...</span>
-                  </>
-                ) : (
-                  <>
-                    <WifiIcon className="w-4 h-4 animate-spin" />
-                    <span>Connecting to live updates...</span>
-                  </>
                 )}
               </div>
-
-              {/* Patient's Queue Status Card */}
-              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div
-                  className={`p-6 text-white bg-gradient-to-r ${
-                    queueData.queueStatus === "called"
-                      ? "from-green-500 to-emerald-600"
-                      : queueData.queueStatus === "waiting"
-                      ? "from-blue-500 to-cyan-600"
-                      : "from-gray-500 to-slate-600"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-2xl font-bold mb-2">
-                        {queueData.queueStatus === "called"
-                          ? "Your Turn!"
-                          : "Queue Status"}
-                      </h2>
-                      <div className="flex items-center space-x-4">
-                        <span className="text-lg">
-                          Token:{" "}
-                          <span className="font-bold">
-                            #{queueData.tokenNumber}
-                          </span>
-                        </span>
-                        <span>
-                          Position:{" "}
-                          <span className="font-bold">
-                            {queueData.currentPosition}
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-3xl font-bold">
-                        {formatWaitTime(queueData.estimatedWaitTime)}
-                      </div>
-                      <div className="text-sm opacity-90">Estimated Wait</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-6 space-y-6">
-                  {/* Queue Progress Bar */}
-                  <div>
-                    <div className="flex justify-between text-sm text-gray-600 mb-2">
-                      <span>Queue Progress</span>
-                      <span>
-                        {queueData.totalInQueue - queueData.currentPosition} of{" "}
-                        {queueData.totalInQueue} completed
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div
-                        className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-1000"
-                        style={{
-                          width: `${
-                            ((queueData.totalInQueue -
-                              queueData.currentPosition) /
-                              queueData.totalInQueue) *
-                            100
-                          }%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* Queue Statistics */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {queueData.currentPosition}
-                      </div>
-                      <div className="text-sm text-gray-600">Your Position</div>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {queueData.totalInQueue}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Total in Queue
-                      </div>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {queueData.averageConsultationTime}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Avg Time (min)
-                      </div>
-                    </div>
-                    <div className="text-center p-4 bg-orange-50 rounded-lg">
-                      <div className="text-2xl font-bold text-orange-600">
-                        {queueData.lastUpdated
-                          ? new Date(queueData.lastUpdated).toLocaleTimeString(
-                              [],
-                              { hour: "2-digit", minute: "2-digit" }
-                            )
-                          : "--:--"}
-                      </div>
-                      <div className="text-sm text-gray-600">Last Updated</div>
-                    </div>
-                  </div>
-
-                  {/* Doctor & Center Info */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
-                      <img
-                        src={formData.selectedDoctor?.avatar}
-                        alt={formData.selectedDoctor?.name}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                      <div>
-                        <h4 className="font-semibold text-gray-800">
-                          {formData.selectedDoctor?.name}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          {formData.selectedDoctor?.specialization}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
-                      <BuildingOffice2Icon className="w-8 h-8 text-blue-600" />
-                      <div>
-                        <h4 className="font-semibold text-gray-800">
-                          {formData.selectedCenter?.name}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          {formData.selectedCenter?.address}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Currently Serving & Next Patients */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Currently Serving */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <CheckCircleIcon className="w-5 h-5 mr-2 text-green-600" />
-                    Currently Serving
-                  </h3>
-                  {currentlyServing ? (
-                    <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg">
-                      <div className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">
-                        #{currentlyServing.tokenNumber}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-800">
-                          {currentlyServing.name}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Started:{" "}
-                          {new Date(
-                            currentlyServing.startTime
-                          ).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <ClockIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p>No patient currently being served</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Next in Queue */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <UserGroupIcon className="w-5 h-5 mr-2 text-blue-600" />
-                    Next in Queue
-                  </h3>
-                  <div className="space-y-2">
-                    {nextPatients.length > 0 ? (
-                      nextPatients.slice(0, 3).map((patient, index) => (
-                        <div
-                          key={patient.tokenNumber}
-                          className={`flex items-center space-x-3 p-3 rounded-lg ${
-                            patient.tokenNumber === queueData.tokenNumber
-                              ? "bg-blue-50 border-2 border-blue-200"
-                              : "bg-gray-50"
-                          }`}
-                        >
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                              patient.tokenNumber === queueData.tokenNumber
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-400 text-white"
-                            }`}
-                          >
-                            #{patient.tokenNumber}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-800">
-                              {patient.tokenNumber === queueData.tokenNumber
-                                ? "You"
-                                : patient.name}
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {patient.reason}
-                            </p>
-                          </div>
-                          {index === 0 && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                              Next
-                            </span>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-4 text-gray-500">
-                        <UserGroupIcon className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">Queue information loading...</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Live Updates Feed */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                  <InformationCircleIcon className="w-5 h-5 mr-2 text-blue-600" />
-                  Live Updates
-                  <span
-                    className={`ml-2 w-2 h-2 rounded-full ${
-                      connectionStatus === "connected"
-                        ? "bg-green-400 animate-pulse"
-                        : "bg-gray-400"
-                    }`}
-                  ></span>
-                </h3>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {liveUpdates.length > 0 ? (
-                    liveUpdates.map((update, index) => (
-                      <div
-                        key={index}
-                        className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-800">
-                            {update.message}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(update.timestamp).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <InformationCircleIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p>No recent updates</p>
-                      <p className="text-sm">Live updates will appear here</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex justify-center space-x-4">
-                <button
-                  onClick={() => window.print()}
-                  className="px-6 py-3 border border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50"
-                >
-                  Print Token
-                </button>
-                <button
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Are you sure you want to leave the queue?"
-                      )
-                    ) {
-                      // TODO: API call to leave queue
-                      wsRef.current?.close();
-                      setStep(1);
-                    }
-                  }}
-                  className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
-                >
-                  Leave Queue
-                </button>
-              </div>
             </div>
-          )}
+
+            {/* The Ticket Graphic */}
+            <div className="bg-white rounded-3xl shadow-xl border-t-8 border-green-600 p-6 md:p-8 max-w-lg mx-auto relative overflow-hidden">
+              {/* Ticket Scalloped Top Effect */}
+              <div className="absolute top-0 left-6 right-6 h-4 bg-[repeating-linear-gradient(90deg,#16a34a_0px,#16a34a_10px,transparent_10px,transparent_20px)] opacity-50 rounded-b"></div>
+
+              <div className="text-center mb-6 pt-4">
+                <h2 className="text-2xl font-bold text-green-900 border-b-2 border-green-100 pb-2">
+                  AyurSutra Consultation Ticket
+                </h2>
+              </div>
+
+              {/* Patient Details */}
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between border-b border-gray-100 pb-2 text-sm md:text-base">
+                  <span className="text-green-700 font-semibold flex items-center gap-1">
+                    <UserIcon className="w-4 h-4" /> Patient:
+                  </span>
+                  <span className="text-green-950 font-medium">{activeTicket.name}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-100 pb-2 text-sm md:text-base">
+                  <span className="text-green-700 font-semibold flex items-center gap-1">
+                    <PhoneIcon className="w-4 h-4" /> Mobile:
+                  </span>
+                  <span className="text-green-950 font-medium">{activeTicket.phone}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-100 pb-2 text-sm md:text-base">
+                  <span className="text-green-700 font-semibold flex items-center gap-1">
+                    <CalendarIcon className="w-4 h-4" /> Date:
+                  </span>
+                  <span className="text-green-950 font-medium">{activeTicket.date}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-100 pb-2 text-sm md:text-base">
+                  <span className="text-green-700 font-semibold flex items-center gap-1">
+                    <BuildingOffice2Icon className="w-4 h-4" /> Center:
+                  </span>
+                  <span className="text-green-950 font-medium text-right max-w-[200px]">{activeTicket.hospital}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-100 pb-2 text-sm md:text-base">
+                  <span className="text-green-700 font-semibold flex items-center gap-1">
+                    <ClockIcon className="w-4 h-4" /> Clinic Service:
+                  </span>
+                  <span className="text-green-950 font-medium">{activeTicket.service}</span>
+                </div>
+              </div>
+
+              {/* QR Code */}
+              <div className="flex flex-col items-center justify-center p-4 bg-green-50 rounded-2xl border-2 border-green-100 mb-6">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${getQrDataString()}`}
+                  alt="Queue QR Ticket"
+                  className="w-40 h-40 border-4 border-white rounded-xl shadow-md transition-transform hover:scale-105"
+                />
+                <span className="text-xs text-green-700 font-semibold mt-2 flex items-center gap-1">
+                  <QrCodeIcon className="w-4 h-4" /> Scan at reception to check-in
+                </span>
+              </div>
+
+              {/* Ticket Action Buttons */}
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center justify-center gap-2 py-3 bg-gray-100 hover:bg-gray-200 text-green-900 font-bold rounded-xl transition duration-300 shadow-sm border border-gray-200"
+                >
+                  <PrinterIcon className="w-5 h-5" /> Print Ticket
+                </button>
+                <a
+                  href={getWhatsAppLink()}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition duration-300 shadow-md"
+                >
+                  💬 Share WhatsApp
+                </a>
+              </div>
+
+              {/* Leave Queue Action */}
+              <button
+                onClick={handleLeaveQueue}
+                disabled={loading}
+                className="w-full mt-4 py-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold rounded-xl transition duration-300 flex items-center justify-center gap-2"
+              >
+                <ArrowRightStartOnRectangleIcon className="w-5 h-5" /> Leave Queue
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ================= PHASE 1: REGISTRATION FORM ================= */
+          <div className="bg-white rounded-3xl shadow-xl border-3 border-emerald-100 overflow-hidden">
+            <div className="p-6 md:p-8 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50">
+              <h2 className="text-xl md:text-2xl font-bold text-green-900 mb-1">
+                Enter Consultation Details
+              </h2>
+              <p className="text-xs md:text-sm text-green-700 font-medium">
+                Fill the required details below to join the real-time clinical token registry.
+              </p>
+            </div>
+
+            <form onSubmit={handleJoinQueue} className="p-6 md:p-8 space-y-6">
+              {/* Patient Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-green-900 mb-2">
+                    Patient Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={patientName}
+                    onChange={(e) => setPatientName(e.target.value)}
+                    placeholder="Enter full name"
+                    className="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:border-green-600 focus:outline-none focus:ring-4 focus:ring-green-100 transition duration-300 text-green-950 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-green-900 mb-2">
+                    Mobile Number
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    value={patientPhone}
+                    onChange={(e) => setPatientPhone(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Enter 10-digit number"
+                    className="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:border-green-600 focus:outline-none focus:ring-4 focus:ring-green-100 transition duration-300 text-green-950 font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Datepicker */}
+              <div>
+                <label className="block text-sm font-semibold text-green-900 mb-2">
+                  Appointment Date
+                </label>
+                <input
+                  type="date"
+                  required
+                  min={new Date().toISOString().split("T")[0]}
+                  value={appointmentDate}
+                  onChange={(e) => setAppointmentDate(e.target.value)}
+                  className="w-full max-w-xs px-4 py-3 border-2 border-emerald-100 rounded-xl focus:border-green-600 focus:outline-none focus:ring-4 focus:ring-green-100 transition duration-300 text-green-950 font-medium"
+                />
+              </div>
+
+              {/* Hospital Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-green-900 mb-3">
+                  Select Hospital Branch
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {hospitals.map((hospital) => (
+                    <button
+                      key={hospital}
+                      type="button"
+                      onClick={() => setSelectedHospital(hospital)}
+                      className={`p-4 rounded-2xl text-left border-2 transition duration-300 flex flex-col justify-between h-28 hover:scale-[1.02] ${
+                        selectedHospital === hospital
+                          ? "border-green-600 bg-green-50 shadow-md ring-4 ring-green-100"
+                          : "border-gray-100 hover:border-green-200 bg-white"
+                      }`}
+                    >
+                      <BuildingOffice2Icon className={`w-6 h-6 ${selectedHospital === hospital ? "text-green-600" : "text-gray-400"}`} />
+                      <span className="text-xs md:text-sm font-bold text-green-950 line-clamp-2 leading-tight">
+                        {hospital}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Service Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-green-900 mb-3">
+                  Select Consultation Specialty
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {services.map((service) => (
+                    <button
+                      key={service.name}
+                      type="button"
+                      onClick={() => setSelectedService(service.name)}
+                      className={`p-4 rounded-2xl text-left border-2 transition duration-300 flex items-center gap-4 hover:scale-[1.01] ${
+                        selectedService === service.name
+                          ? "border-green-600 bg-green-50 shadow-md ring-4 ring-green-100"
+                          : "border-gray-100 hover:border-green-200 bg-white"
+                      }`}
+                    >
+                      <span className="text-3xl select-none">{service.icon}</span>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-green-950">{service.name}</h4>
+                        <p className="text-xs text-green-700 mt-0.5 line-clamp-1 font-medium">
+                          {service.desc}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit Action */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-extrabold text-base md:text-lg rounded-2xl shadow-lg hover:shadow-xl hover:translate-y-[-2px] transition duration-300 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing Ticket...
+                  </>
+                ) : (
+                  "Join Digital Consultation Queue"
+                )}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Informative Footer Badge */}
+        <div className="mt-8 flex gap-3 p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100">
+          <InformationCircleIcon className="w-6 h-6 text-green-600 flex-shrink-0" />
+          <p className="text-xs text-green-700 leading-normal font-medium">
+            <strong>Real-Time Database Notice:</strong> Position calculations are done dynamically based on today's token pool. Estimated wait time is computed as approximately 5 minutes per patient, subject to consultation complexity. Keep this ticket page active to receive instant updates.
+          </p>
         </div>
       </div>
     </div>

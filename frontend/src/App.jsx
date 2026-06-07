@@ -11,6 +11,7 @@ import PatientProfiles from "./pages/Patients";
 import PanchakarmaBooking from "./pages/PanchakarmaBooking";
 import PanchakarmaReschedule from "./pages/PanchakarmaReschedule";
 import JoinQueue from "./pages/JoinQueue";
+import QueueManagement from "./pages/QueueManagement";
 import QueueRescheduleCancel from "./components/QueueRescheduleCancel";
 import QueueTrends from "./pages/QueueTrends";
 import DoctorDashboard from "./components/DoctorDashboard";
@@ -45,6 +46,7 @@ function App() {
 
             {/* General Appointment Routes - Using Queue System */}
             <Route path="/queue/join" element={<JoinQueue />} />
+            <Route path="/queue/manage" element={<QueueManagement />} />
             <Route path="/queue/reschedule-cancel" element={<QueueRescheduleCancel />} />
 
             {/* Alternative routes for consistency */}
