@@ -13,7 +13,7 @@ import Footer from "../components/Footer";
 import AppointmentReceipt from "../components/AppointmentReceipt";
 import AyurVaidya from "../components/AyurSutraBot"; // Import Sahayak chatbot
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 const PanchakarmaBooking = () => {
   // Patient data (auto-fetched from backend/database)

@@ -13,7 +13,7 @@ import {
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 const PanchakarmaReschedule = () => {
   const [step, setStep] = useState(1); // 1: Search, 2: Appointment Details, 3: Action Selection, 4: Reschedule, 5: Confirmation

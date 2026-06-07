@@ -19,7 +19,7 @@ import {
   EyeIcon,
 } from "@heroicons/react/24/outline";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 const DoctorDashboard = () => {
   const [doctorData, setDoctorData] = useState(null);
