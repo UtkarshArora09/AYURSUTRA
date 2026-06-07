@@ -40,14 +40,23 @@ const Footer = () => {
           <div className="col-span-1 sm:col-span-2 lg:col-span-1 space-y-4">
             {/* Logo */}
             <div className="flex items-center space-x-3 group">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
-                <span className="text-white font-bold text-base sm:text-lg">🕉️</span>
+              <div className="relative">
+                <img
+                  src="/assets/logo.jpg"
+                  alt="AyurSutra Logo"
+                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-xl shadow-md border-2 border-green-200 group-hover:scale-105 transition-transform duration-300"
+                />
+                <span className="absolute -bottom-1 -right-1 bg-green-500 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full border-2 border-white flex items-center justify-center text-[7px] sm:text-[8px] text-white">
+                  ✓
+                </span>
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
+                <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent group-hover:from-green-500 group-hover:to-emerald-600 transition-colors duration-300">
                   AyurSutra
                 </h3>
-                <p className="text-xs text-gray-600 -mt-1">Wellness Platform</p>
+                <p className="text-[10px] text-gray-500 -mt-0.5 tracking-wider font-semibold uppercase">
+                  Wellness Platform
+                </p>
               </div>
             </div>
 
