@@ -9,7 +9,6 @@ import {
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import Header from "../components/Header";
-import Footer from "../components/Footer";
 import AppointmentReceipt from "../components/AppointmentReceipt";
 import AyurVaidya from "../components/AyurSutraBot"; // Import Sahayak chatbot
 
@@ -834,8 +833,6 @@ const PanchakarmaBooking = () => {
           </form>
         </div>
       </div>
-
-      <Footer />
 
       {/* Sahayak Chatbot - Floating Assistant */}
       <AyurVaidya />

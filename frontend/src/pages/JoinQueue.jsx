@@ -12,7 +12,6 @@ import {
   SignalIcon,
 } from "@heroicons/react/24/outline";
 import Header from "../components/Header";
-import Footer from "../components/Footer";
 
 const JoinQueue = () => {
   const [step, setStep] = useState(1); // 1: Join Queue, 2: Live Queue Status
@@ -937,8 +936,6 @@ const JoinQueue = () => {
           )}
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 };

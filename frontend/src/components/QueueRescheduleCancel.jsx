@@ -13,7 +13,6 @@ import {
   WifiIcon
 } from '@heroicons/react/24/outline';
 import Header from '../components/Header';
-import Footer from '../components/Footer';
 
 const QueueRescheduleCancel = () => {
   const [step, setStep] = useState(1); // 1: Search, 2: Queue Details, 3: Action Selection, 4: Reschedule/Cancel, 5: Confirmation
@@ -1189,8 +1188,6 @@ const QueueRescheduleCancel = () => {
           </div>
         </div>
       </div>
-      
-      <Footer />
     </div>
   );
 };

@@ -9,7 +9,6 @@ import {
   ArrowLeftIcon,
 } from "@heroicons/react/24/outline";
 import Header from "../components/Header";
-import Footer from "../components/Footer";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
@@ -230,7 +229,6 @@ const ResetPassword = () => {
             </p>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -264,7 +262,6 @@ const ResetPassword = () => {
             </div>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -297,7 +294,6 @@ const ResetPassword = () => {
             </Link>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -515,8 +511,6 @@ const ResetPassword = () => {
           </form>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 };

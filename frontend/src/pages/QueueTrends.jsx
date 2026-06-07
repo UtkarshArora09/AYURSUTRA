@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import Header from "../components/Header";
-import Footer from "../components/Footer";
 
 const mockQueueData = {
   tokenNumber: "Q-20230915-001",
@@ -131,7 +130,6 @@ export default function QueueTrends() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

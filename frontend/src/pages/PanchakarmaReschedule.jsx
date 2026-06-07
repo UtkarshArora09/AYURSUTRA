@@ -11,7 +11,6 @@ import {
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import Header from "../components/Header";
-import Footer from "../components/Footer";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
@@ -1186,8 +1185,6 @@ const PanchakarmaReschedule = () => {
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 };

@@ -8,7 +8,6 @@ import {
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 import Header from "../components/Header";
-import Footer from "../components/Footer";
 import HeroSection from "../components/Hero/HeroSection";
 import AyurSutraBot from "../components/AyurSutraBot"; // Import the AyurSutraBot component
 
@@ -249,9 +248,6 @@ const Home = () => (
         Register Now <ArrowRightIcon className="inline w-6 h-6 ml-2" />
       </Link>
     </section>
-
-
-    <Footer />
 
 
     {/* AyurSutra Bot - Floating Chat Widget */}

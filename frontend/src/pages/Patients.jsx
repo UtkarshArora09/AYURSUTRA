@@ -1,6 +1,5 @@
 import React from 'react';
 import Header from '../components/Header';
-import Footer from '../components/Footer';
 import PatientRegistration from '../components/PatientRegistration/PatientRegistration';
 
 const Patients = () => {
@@ -14,8 +13,6 @@ const Patients = () => {
       <main className="flex-grow py-12 px-4 sm:px-6 md:px-10 max-w-5xl mx-auto">
         <PatientRegistration generatedPatientId={generatedPatientId} />
       </main>
-
-      <Footer />
     </div>
   );
 };

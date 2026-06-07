@@ -13,9 +13,7 @@ import {
   PlayIcon
 } from '@heroicons/react/24/outline';
 
-// Import Header and Footer components
 import Header from '../components/Header';
-import Footer from '../components/Footer';
 
 const Therapies = () => {
   const [activeTab, setActiveTab] = useState('catalogue');
@@ -454,9 +452,6 @@ const Therapies = () => {
           {renderContent()}
         </div>
       </main>
-
-      {/* Footer Component */}
-      <Footer />
     </div>
   );
 };
