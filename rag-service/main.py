@@ -98,18 +98,19 @@ def get_db_connection():
 
 
 def get_embedding(text: str) -> list[float]:
-    """Retrieve sentence embeddings via the Gemini text-embedding-004 API."""
+    """Retrieve sentence embeddings via the Gemini embedding-001 API."""
     if not GEMINI_API_KEY:
         raise HTTPException(
             status_code=500,
             detail="GEMINI_API_KEY is not configured in .env."
         )
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={GEMINI_API_KEY}"
     payload = {
-        "model": "models/text-embedding-004",
+        "model": "models/gemini-embedding-001",
         "content": {
             "parts": [{"text": text}]
-        }
+        },
+        "outputDimensionality": 768
     }
     try:
         response = requests.post(url, json=payload, timeout=15)

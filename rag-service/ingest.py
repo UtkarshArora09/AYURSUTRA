@@ -54,14 +54,15 @@ def chunk_documents(docs):
 def get_embeddings_batch(texts: list[str]) -> list[list[float]]:
     if not GEMINI_API_KEY:
         raise Exception("Error: GEMINI_API_KEY is not configured in .env.")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:batchEmbedContents?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key={GEMINI_API_KEY}"
     requests_list = []
     for text in texts:
         requests_list.append({
-            "model": "models/text-embedding-004",
+            "model": "models/gemini-embedding-001",
             "content": {
                 "parts": [{"text": text}]
-            }
+            },
+            "outputDimensionality": 768
         })
     payload = {"requests": requests_list}
     response = requests.post(url, json=payload, timeout=45)
