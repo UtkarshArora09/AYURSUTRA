@@ -82,9 +82,27 @@ const searchBooking = async ({ booking_id, patient_id, mobile_number }) => {
   return result.rows;
 };
 
+const rescheduleBooking = async (id, date, time) => {
+  const result = await db.query(
+    "UPDATE therapy_bookings SET scheduled_date = $1, scheduled_time = $2, status = 'rescheduled' WHERE booking_id = $3 RETURNING *",
+    [date, time, id]
+  );
+  return result.rows[0];
+};
+
+const cancelBooking = async (id) => {
+  const result = await db.query(
+    "UPDATE therapy_bookings SET status = 'cancelled' WHERE booking_id = $1 RETURNING *",
+    [id]
+  );
+  return result.rows[0];
+};
+
 module.exports = {
   createBooking,
   getAllBookings,
   getBookingById,
   searchBooking,
+  rescheduleBooking,
+  cancelBooking,
 };

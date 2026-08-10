@@ -17,14 +17,12 @@ const AppointmentReceipt = ({ bookingData, onPrint, onDownload }) => {
   const receiptRef = useRef();
 
   const generateQRCode = (data) => {
-    // In a real implementation, use a QR code library like 'qrcode'
-    // For now, we'll use a placeholder QR service
     const qrData = encodeURIComponent(JSON.stringify({
-      bookingId: "1919",
-      patientId: "1805",
-      date: "24/09/2025",
-      time: "9:00 AM - 12:00 PM",
-      doctorId: "1910"
+      bookingId: bookingData.booking_id || bookingData.bookingId || "N/A",
+      patientId: bookingData.patient_id || bookingData.patientId || "N/A",
+      date: bookingData.scheduled_date || bookingData.selectedDate || "N/A",
+      time: bookingData.scheduled_time || bookingData.selectedTimeSlot?.time || "N/A",
+      doctorId: bookingData.doctor_id || bookingData.selectedDoctor?.id || "N/A"
     }));
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrData}`;
   };
@@ -98,7 +96,7 @@ const AppointmentReceipt = ({ bookingData, onPrint, onDownload }) => {
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">Booking ID</p>
-              <p className="text-2xl font-bold text-green-800 font-mono">1919</p>
+              <p className="text-2xl font-bold text-green-800 font-mono">{bookingData.booking_id || bookingData.bookingId || "N/A"}</p>
             </div>
           </div>
         </div>
@@ -118,19 +116,19 @@ const AppointmentReceipt = ({ bookingData, onPrint, onDownload }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Patient ID</p>
-                    <p className="font-semibold text-gray-800 font-mono">1805</p>
+                    <p className="font-semibold text-gray-800 font-mono">{bookingData.patientCode || bookingData.patientId || "N/A"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Full Name</p>
-                    <p className="font-semibold text-gray-800">Sudhansu Kumar</p>
+                    <p className="font-semibold text-gray-800">{bookingData.patientName || "N/A"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Aadhar Number</p>
-                    <p className="font-semibold text-gray-800 font-mono">407303987371</p>
+                    <p className="font-semibold text-gray-800 font-mono">{bookingData.aadharNumber || "N/A"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Mobile Number</p>
-                    <p className="font-semibold text-gray-800">9142026625</p>
+                    <p className="font-semibold text-gray-800">{bookingData.mobile_number || bookingData.mobileNumber || "N/A"}</p>
                   </div>
                 </div>
               </div>
@@ -145,33 +143,36 @@ const AppointmentReceipt = ({ bookingData, onPrint, onDownload }) => {
                   <div>
                     <p className="text-sm text-gray-500">Date</p>
                     <p className="font-semibold text-gray-800">
-                      {new Date(bookingData.selectedDate).toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
+                      {bookingData.selectedDate || bookingData.scheduled_date
+                        ? new Date(bookingData.selectedDate || bookingData.scheduled_date).toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })
+                        : "N/A"
+                      }
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Time</p>
                     <p className="font-semibold text-gray-800 flex items-center">
                       <ClockIcon className="w-4 h-4 mr-1" />
-                      {bookingData.selectedTimeSlot?.time}
+                      {bookingData.scheduled_time || bookingData.selectedTimeSlot?.time || "N/A"}
                       {bookingData.selectedTimeSlot?.optimal && (
                         <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                          Optimal for {bookingData.doshaType} dosha
+                          Optimal for {bookingData.dosha_type || bookingData.doshaType} dosha
                         </span>
                       )}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Duration</p>
-                    <p className="font-semibold text-gray-800">9:00 AM - 12:00 PM</p>
+                    <p className="font-semibold text-gray-800">{bookingData.selectedTimeSlot?.therapyDuration || "90 minutes"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Dosha Type</p>
-                    <p className="font-semibold text-gray-800 capitalize">Vata</p>
+                    <p className="font-semibold text-gray-800 capitalize">{bookingData.dosha_type || bookingData.doshaType || "N/A"}</p>
                   </div>
                 </div>
               </div>
@@ -184,25 +185,25 @@ const AppointmentReceipt = ({ bookingData, onPrint, onDownload }) => {
                 </h3>
                 <div className="flex items-start space-x-4 mb-4">
                   <img
-                    src={bookingData.selectedDoctor?.avatar}
-                    alt={bookingData.selectedDoctor?.name}
+                    src={bookingData.selectedDoctor?.avatar || "https://via.placeholder.com/100"}
+                    alt={bookingData.selectedDoctor?.name || "Doctor Avatar"}
                     className="w-16 h-16 rounded-full object-cover border-2 border-blue-200"
                   />
                   <div>
-                    <p className="font-semibold text-gray-800 text-lg">Dr. Priya Singh</p>
-                    <p className="text-blue-600 font-medium">Mixed Dosha Specialist</p>
-                    <p className="text-sm text-gray-500"> 7 years• ⭐ 4.7</p>
+                    <p className="font-semibold text-gray-800 text-lg">{bookingData.selectedDoctor?.name || "Dr. Priya Sharma"}</p>
+                    <p className="text-blue-600 font-medium">{bookingData.selectedDoctor?.specialization || "Panchakarma Specialist"}</p>
+                    <p className="text-sm text-gray-500"> {bookingData.selectedDoctor?.experience || "7 years"} • ⭐ {bookingData.selectedDoctor?.rating || "4.7"}</p>
                   </div>
                 </div>
                 
                 {bookingData.recommendedTreatment && (
                   <div className="border-t border-blue-200 pt-4">
                     <p className="text-sm text-gray-500">Recommended Treatment</p>
-                    <p className="font-semibold text-gray-800">Vamana</p>
-                    <p className="text-sm text-gray-600 mt-1">Induced Vomiting</p>
+                    <p className="font-semibold text-gray-800">{bookingData.therapy_type || bookingData.recommendedTreatment?.therapy?.name || "Vamana"}</p>
+                    <p className="text-sm text-gray-600 mt-1">{bookingData.recommendedTreatment?.therapy?.description || "Traditional therapeutic purification process."}</p>
                     <div className="flex space-x-4 mt-2 text-sm">
-                      <span className="text-gray-600">Duration: 75 mins</span>
-                      <span className="text-gray-600">Sessions: Vamana and Raktamokshana</span>
+                      <span className="text-gray-600">Duration: {bookingData.recommendedTreatment?.duration || "7-14 days"}</span>
+                      <span className="text-gray-600">Sessions: {bookingData.recommendedTreatment?.sessions || "3-5 sessions"}</span>
                     </div>
                   </div>
                 )}
@@ -215,19 +216,21 @@ const AppointmentReceipt = ({ bookingData, onPrint, onDownload }) => {
                   Treatment Center
                 </h3>
                 <div>
-                  <p className="font-semibold text-gray-800 text-lg"></p>
-                  <p className="text-gray-600 mt-1">{bookingData.selectedCenter?.address}</p>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {bookingData.selectedCenter?.facilities.map((facility) => (
-                      <span
-                        key={facility}
-                        className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full"
-                      >
-                        {facility}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2">⭐ {bookingData.selectedCenter?.rating} rating</p>
+                  <p className="font-semibold text-gray-800 text-lg">{bookingData.selectedCenter?.name || "AyurSutra Wellness Center"}</p>
+                  <p className="text-gray-600 mt-1">{bookingData.selectedCenter?.address || "N/A"}</p>
+                  {bookingData.selectedCenter?.facilities && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {bookingData.selectedCenter.facilities.map((facility) => (
+                        <span
+                          key={facility}
+                          className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full"
+                        >
+                          {facility}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-sm text-gray-500 mt-2">⭐ {bookingData.selectedCenter?.rating || "4.7"} rating</p>
                 </div>
               </div>
             </div>

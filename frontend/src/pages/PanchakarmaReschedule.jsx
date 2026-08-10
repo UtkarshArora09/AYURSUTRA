@@ -190,11 +190,28 @@ const PanchakarmaReschedule = () => {
     e.preventDefault();
     setLoading(true);
 
-    // TODO: Submit reschedule request to backend
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/bookings/${appointmentData.bookingId}/reschedule`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          new_date: rescheduleData.newDate,
+          new_time: rescheduleData.newTimeSlot?.time,
+          reason: rescheduleData.reason,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reschedule booking");
+      }
+
       setStep(5);
+    } catch (error) {
+      console.error("Reschedule error:", error);
+      alert("Failed to reschedule appointment. Please try again.");
+    } finally {
       setLoading(false);
-    }, 2000);
+    }
   };
 
   // Handle cancellation submission
@@ -202,11 +219,26 @@ const PanchakarmaReschedule = () => {
     e.preventDefault();
     setLoading(true);
 
-    // TODO: Submit cancellation request to backend
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/bookings/${appointmentData.bookingId}/cancel`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: cancelData.reason,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to cancel booking");
+      }
+
       setStep(5);
+    } catch (error) {
+      console.error("Cancellation error:", error);
+      alert("Failed to cancel appointment. Please try again.");
+    } finally {
       setLoading(false);
-    }, 2000);
+    }
   };
 
   // Check if action is still possible

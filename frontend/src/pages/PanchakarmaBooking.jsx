@@ -17,6 +17,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, ""
 const PanchakarmaBooking = () => {
   // Patient data (auto-fetched from backend/database)
   const [patientData, setPatientData] = useState({
+    id: null,
     patientId: "",
     name: "",
     aadharNumber: "",
@@ -141,7 +142,34 @@ const PanchakarmaBooking = () => {
   }, [step, formData.selectedDoctor, formData.selectedCenter]);
 
   const fetchPatientData = async () => {
-    // TODO: Replace with actual API call
+    try {
+      const userRaw = localStorage.getItem("ayursutra_user");
+      if (userRaw) {
+        const user = JSON.parse(userRaw);
+        if (user.role === "patient") {
+          const patientId = user.patient_id || user.id;
+          if (patientId) {
+            const response = await fetch(`${API_BASE_URL}/api/patients/${patientId}`);
+            if (response.ok) {
+              const data = await response.json();
+              setPatientData({
+                id: data.patient_id,
+                patientId: `AYR-2026-${String(data.patient_id).padStart(3, "0")}`,
+                name: `${data.first_name} ${data.last_name}`.trim(),
+                aadharNumber: data.aadhar_number || "",
+              });
+              setFormData((prev) => ({
+                ...prev,
+                mobileNumber: data.mob_number || "",
+                doshaType: (data.dosha || "").toLowerCase() || "",
+              }));
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching patient data in booking:", error);
+    }
   };
 
   const fetchAvailableDates = async (doctorId, centerId) => {
@@ -266,12 +294,16 @@ const PanchakarmaBooking = () => {
     try {
       const bookingData = {
         patient_id: patientData.id, // integer from DB (e.g. 1, 2, 3)
-        patient_code: patientData.patientId, // string code ("AYR-2024-001")
+        patient_code: patientData.patientId, // string code ("AYR-2026-001")
         therapy_type: recommendedTreatment?.therapy?.name || "Vamana",
         scheduled_date: formData.selectedDate,
         scheduled_time: formData.selectedTimeSlot?.time,
         doctor_id: formData.selectedDoctor?.id, // integer
         doctor_code: formData.selectedDoctor?.code, // e.g. "Ayur_doc2"
+        center_id: formData.selectedCenter?.id, // integer center ID!
+        mobile_number: formData.mobileNumber, // patient mobile number!
+        symptoms: formData.symptoms || "",
+        preferences: formData.preferences || "",
         status: "Pending",
         dosha_type: formData.doshaType || "Vata",
       };
@@ -289,7 +321,18 @@ const PanchakarmaBooking = () => {
       }
 
       const data = await response.json();
-      setConfirmedBookingData(data); // show receipt with DB response
+      const completeBooking = {
+        ...data.data,
+        patientName: patientData.name,
+        patientCode: patientData.patientId,
+        aadharNumber: patientData.aadharNumber,
+        selectedDoctor: formData.selectedDoctor,
+        selectedCenter: formData.selectedCenter,
+        selectedTimeSlot: formData.selectedTimeSlot,
+        selectedDate: formData.selectedDate,
+        recommendedTreatment: recommendedTreatment
+      };
+      setConfirmedBookingData(completeBooking);
       setStep(4);
     } catch (error) {
       console.error("Booking error:", error);
@@ -386,15 +429,10 @@ const PanchakarmaBooking = () => {
                       Patient ID
                     </label>
                     <input
-                      type="number"
+                      type="text"
+                      readOnly
                       value={patientData.patientId}
-                      onChange={(e) =>
-                        setPatientData({
-                          ...patientData,
-                          patientId: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
                     />
                   </div>
 
@@ -404,14 +442,9 @@ const PanchakarmaBooking = () => {
                     </label>
                     <input
                       type="text"
+                      readOnly
                       value={patientData.name}
-                      onChange={(e) =>
-                        setPatientData({
-                          ...patientData,
-                          name: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
                     />
                   </div>
 
@@ -420,7 +453,7 @@ const PanchakarmaBooking = () => {
                       Aadhar Number
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       value={patientData.aadharNumber}
                       onChange={(e) =>
                         setPatientData({
