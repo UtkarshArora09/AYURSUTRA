@@ -31,9 +31,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 TOP_K = int(os.getenv("TOP_K", 4))
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", 0.35))
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 app = FastAPI(title="AyurSutra Advanced RAG Chatbot")
 
@@ -100,30 +98,32 @@ def get_db_connection():
 
 
 def get_embedding(text: str) -> list[float]:
-    """Retrieve sentence embeddings via the Serverless Hugging Face Inference API."""
-    if not HF_TOKEN:
+    """Retrieve sentence embeddings via the Gemini text-embedding-004 API."""
+    if not GEMINI_API_KEY:
         raise HTTPException(
             status_code=500,
-            detail="HF_TOKEN (Hugging Face User Access Token) is not configured in .env."
+            detail="GEMINI_API_KEY is not configured in .env."
         )
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    response = requests.post(
-        HF_API_URL,
-        headers=headers,
-        json={"inputs": [text]}
-    )
-    if response.status_code != 200:
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={GEMINI_API_KEY}"
+    payload = {
+        "model": "models/text-embedding-004",
+        "content": {
+            "parts": [{"text": text}]
+        }
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=15)
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Gemini Embeddings API error: {response.text}"
+            )
+        return response.json()["embedding"]["values"]
+    except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Hugging Face Inference API error: {response.text}"
+            detail=f"Failed to fetch embeddings from Gemini API: {str(e)}"
         )
-    res = response.json()
-    if isinstance(res, list) and len(res) > 0:
-        return res[0]
-    raise HTTPException(
-        status_code=500,
-        detail="Unexpected response format from Hugging Face Inference API."
-    )
 
 
 def get_chat_history(conn, session_id: str, limit: int = 10):

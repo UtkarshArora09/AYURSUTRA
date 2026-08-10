@@ -4,13 +4,14 @@
 -- 1. Enable the pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- 2. Table to hold chunked knowledge-base content + embeddings (384 dimensions for all-MiniLM-L6-v2)
-CREATE TABLE IF NOT EXISTS kb_chunks (
+-- 2. Table to hold chunked knowledge-base content + embeddings (768 dimensions for Gemini text-embedding-004)
+DROP TABLE IF EXISTS kb_chunks CASCADE;
+CREATE TABLE kb_chunks (
     id          BIGSERIAL PRIMARY KEY,
     content     TEXT NOT NULL,
     source      TEXT,                 -- e.g. 'therapies.md', 'faq.md'
     metadata    JSONB DEFAULT '{}',   -- optional metadata
-    embedding   VECTOR(384) NOT NULL,
+    embedding   VECTOR(768) NOT NULL,
     created_at  TIMESTAMPTZ DEFAULT now()
 );
 

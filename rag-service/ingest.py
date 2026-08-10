@@ -19,10 +19,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-HF_TOKEN = os.getenv("HF_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "knowledge")
-
-HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 80
@@ -54,17 +52,23 @@ def chunk_documents(docs):
 
 
 def get_embeddings_batch(texts: list[str]) -> list[list[float]]:
-    if not HF_TOKEN:
-        raise Exception("Error: HF_TOKEN is not configured in .env.")
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    response = requests.post(
-        HF_API_URL,
-        headers=headers,
-        json={"inputs": texts}
-    )
+    if not GEMINI_API_KEY:
+        raise Exception("Error: GEMINI_API_KEY is not configured in .env.")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:batchEmbedContents?key={GEMINI_API_KEY}"
+    requests_list = []
+    for text in texts:
+        requests_list.append({
+            "model": "models/text-embedding-004",
+            "content": {
+                "parts": [{"text": text}]
+            }
+        })
+    payload = {"requests": requests_list}
+    response = requests.post(url, json=payload, timeout=45)
     if response.status_code != 200:
-        raise Exception(f"Hugging Face Inference API error: {response.text}")
-    return response.json()
+        raise Exception(f"Gemini Batch Embeddings API error: {response.text}")
+    embeddings = response.json()["embeddings"]
+    return [emb["values"] for emb in embeddings]
 
 
 def main():
@@ -72,8 +76,8 @@ def main():
         print("Error: DATABASE_URL not set in environment.")
         return
 
-    if not HF_TOKEN:
-        print("Error: HF_TOKEN not set in environment.")
+    if not GEMINI_API_KEY:
+        print("Error: GEMINI_API_KEY not set in environment.")
         return
 
     docs = load_documents()
