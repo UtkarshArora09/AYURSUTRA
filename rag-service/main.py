@@ -8,7 +8,8 @@ main.py — AyurSutra Advanced RAG chatbot API with 5 advanced features:
 
 OPTIMIZATION:
 - Database connections are opened once per HTTP request and reused across all tasks.
-  This significantly reduces SSL handshake and connection establishment overhead for cloud databases like Neon.
+- Embeddings are retrieved via the Hugging Face Inference API instead of loading the local PyTorch model.
+  This reduces memory utilization from ~800MB to under 50MB, preventing Render OOM crashes.
 
 Run:
     uvicorn main:app --reload --port 8001
@@ -16,11 +17,11 @@ Run:
 
 import os
 import psycopg
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
 from groq import Groq
 
 load_dotenv()
@@ -30,8 +31,9 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 TOP_K = int(os.getenv("TOP_K", 4))
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", 0.35))
+HF_TOKEN = os.getenv("HF_TOKEN")
 
-EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
+HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 
 app = FastAPI(title="AyurSutra Advanced RAG Chatbot")
 
@@ -44,14 +46,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_embed_model = None
-
-def get_embed_model():
-    global _embed_model
-    if _embed_model is None:
-        _embed_model = SentenceTransformer(EMBED_MODEL_NAME)
-    return _embed_model
-
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 
@@ -59,6 +53,7 @@ class ChatRequest(BaseModel):
     query: str
     session_id: str = "default_session"
     patient_id: str | int | None = None
+
 
 class ChatResponse(BaseModel):
     answer: str
@@ -102,6 +97,33 @@ def get_db_connection():
     if not DATABASE_URL:
         raise HTTPException(status_code=500, detail="DATABASE_URL is not configured.")
     return psycopg.connect(DATABASE_URL)
+
+
+def get_embedding(text: str) -> list[float]:
+    """Retrieve sentence embeddings via the Serverless Hugging Face Inference API."""
+    if not HF_TOKEN:
+        raise HTTPException(
+            status_code=500,
+            detail="HF_TOKEN (Hugging Face User Access Token) is not configured in .env."
+        )
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    response = requests.post(
+        HF_API_URL,
+        headers=headers,
+        json={"inputs": [text]}
+    )
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Hugging Face Inference API error: {response.text}"
+        )
+    res = response.json()
+    if isinstance(res, list) and len(res) > 0:
+        return res[0]
+    raise HTTPException(
+        status_code=500,
+        detail="Unexpected response format from Hugging Face Inference API."
+    )
 
 
 def get_chat_history(conn, session_id: str, limit: int = 10):
@@ -210,8 +232,7 @@ def query_hybrid_db(conn, query: str, patient_id: int) -> str:
 
 def retrieve_vector_chunks(conn, query: str, k: int = TOP_K):
     """Query similarity search in pgvector."""
-    embed_model = get_embed_model()
-    query_embedding = embed_model.encode(query, normalize_embeddings=True).tolist()
+    query_embedding = get_embedding(query)
     cur = conn.cursor()
     cur.execute(
         """

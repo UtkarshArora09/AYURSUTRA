@@ -1,28 +1,28 @@
 """
-ingest.py — Chunk knowledge base content and load it into pgvector.
+ingest.py — Chunk knowledge base content and load it into pgvector using Hugging Face Inference API.
 
 USAGE:
     1. Put your source content as .txt or .md files inside knowledge/
        (e.g. knowledge/therapies.md, knowledge/faq.md)
-    2. Run: python ingest.py
-    3. Re-run any time your knowledge base content changes (it clears and re-inserts).
+    2. Add HF_TOKEN to your .env
+    3. Run: python ingest.py
+    4. Re-run any time your knowledge base content changes (it clears and re-inserts).
 """
 
 import os
 import glob
+import requests
 import psycopg
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
 
-# We can accept DATABASE_URL from .env
 DATABASE_URL = os.getenv("DATABASE_URL")
+HF_TOKEN = os.getenv("HF_TOKEN")
 KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "knowledge")
 
-# Same model must be used at query time in main.py — do not change independently.
-EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
+HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 80
@@ -53,9 +53,27 @@ def chunk_documents(docs):
     return chunks
 
 
+def get_embeddings_batch(texts: list[str]) -> list[list[float]]:
+    if not HF_TOKEN:
+        raise Exception("Error: HF_TOKEN is not configured in .env.")
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    response = requests.post(
+        HF_API_URL,
+        headers=headers,
+        json={"inputs": texts}
+    )
+    if response.status_code != 200:
+        raise Exception(f"Hugging Face Inference API error: {response.text}")
+    return response.json()
+
+
 def main():
     if not DATABASE_URL:
         print("Error: DATABASE_URL not set in environment.")
+        return
+
+    if not HF_TOKEN:
+        print("Error: HF_TOKEN not set in environment.")
         return
 
     docs = load_documents()
@@ -65,11 +83,14 @@ def main():
 
     print(f"Loaded {len(docs)} source file(s).")
     chunks = chunk_documents(docs)
-    print(f"Split into {len(chunks)} chunk(s). Embedding...")
+    print(f"Split into {len(chunks)} chunk(s). Embedding via Hugging Face...")
 
-    model = SentenceTransformer(EMBED_MODEL_NAME)
     texts = [c[1] for c in chunks]
-    embeddings = model.encode(texts, show_progress_bar=True, normalize_embeddings=True)
+    try:
+        embeddings = get_embeddings_batch(texts)
+    except Exception as e:
+        print(f"Error calculating embeddings: {e}")
+        return
 
     print("Connecting to database...")
     conn = psycopg.connect(DATABASE_URL)
@@ -83,7 +104,7 @@ def main():
         VALUES (%s, %s, %s)
     """
     for (source, text), emb in zip(chunks, embeddings):
-        cur.execute(insert_sql, (text, source, emb.tolist()))
+        cur.execute(insert_sql, (text, source, emb))
 
     conn.commit()
     cur.close()
