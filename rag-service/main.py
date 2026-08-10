@@ -44,7 +44,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-embed_model = SentenceTransformer(EMBED_MODEL_NAME)
+_embed_model = None
+
+def get_embed_model():
+    global _embed_model
+    if _embed_model is None:
+        _embed_model = SentenceTransformer(EMBED_MODEL_NAME)
+    return _embed_model
+
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 
@@ -203,6 +210,7 @@ def query_hybrid_db(conn, query: str, patient_id: int) -> str:
 
 def retrieve_vector_chunks(conn, query: str, k: int = TOP_K):
     """Query similarity search in pgvector."""
+    embed_model = get_embed_model()
     query_embedding = embed_model.encode(query, normalize_embeddings=True).tolist()
     cur = conn.cursor()
     cur.execute(
