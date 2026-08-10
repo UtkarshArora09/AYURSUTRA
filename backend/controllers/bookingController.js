@@ -205,6 +205,25 @@ const cancelBooking = async (req, res) => {
   }
 };
 
+// Get all bookings for a patient
+const getBookingsByPatientId = async (req, res) => {
+  try {
+    const patient_id = req.params.id;
+    const result = await db.query(
+      `SELECT b.*, d.name as doctor_name, d.specialization as doctor_specialization 
+       FROM therapy_bookings b
+       LEFT JOIN doctors d ON b.doctor_id = d.doctor_id
+       WHERE b.patient_id = $1
+       ORDER BY b.scheduled_date DESC`,
+      [patient_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching bookings by patient ID:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 module.exports = {
   createBooking,
   getAllBookings,
@@ -212,4 +231,5 @@ module.exports = {
   search,
   rescheduleBooking,
   cancelBooking,
+  getBookingsByPatientId,
 };

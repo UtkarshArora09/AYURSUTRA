@@ -72,20 +72,20 @@ const PatientDashboard = () => {
         <div className="max-w-3xl mx-auto">
           {/* Header */}
 
-          <header className="rounded-xl bg-white shadow-lg px-8 py-6 mb-10 flex items-center space-x-4">
-            <UserIcon className="w-10 h-10 text-blue-600" />
+          <header className="rounded-xl bg-white shadow-lg px-6 py-6 mb-8 flex flex-col sm:flex-row items-center text-center sm:text-left gap-4">
+            <UserIcon className="w-10 h-10 text-blue-600 flex-shrink-0" />
             <div>
-              <h1 className="text-3xl font-extrabold text-indigo-900">
+              <h1 className="text-2xl sm:text-3xl font-bold text-indigo-900 leading-tight">
                 Welcome, {patient.first_name} {patient.last_name}
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
                 Patient ID: {patient.patient_id}
               </p>
             </div>
           </header>
 
           {/* Info sections */}
-          <section className="grid grid-cols-2 gap-6">
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Personal Details */}
             <div className="bg-white p-6 rounded-xl shadow-md">
               <h2 className="text-lg font-bold text-blue-700 mb-4">
@@ -141,7 +141,7 @@ const PatientDashboard = () => {
             </div>
 
             {/* Medical Info */}
-            <div className="bg-white p-6 rounded-xl shadow-md col-span-2">
+            <div className="bg-white p-6 rounded-xl shadow-md col-span-1 md:col-span-2">
               <h2 className="text-lg font-bold text-blue-700 mb-4">
                 Medical Info
               </h2>

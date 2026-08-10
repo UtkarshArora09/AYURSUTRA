@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { 
   BookOpenIcon, 
@@ -10,13 +10,51 @@ import {
   ClockIcon,
   UserGroupIcon,
   CheckCircleIcon,
-  PlayIcon
+  PlayIcon,
+  UserIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 
 import Header from '../components/Header';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+
 const Therapies = () => {
   const [activeTab, setActiveTab] = useState('catalogue');
+  const [patientId, setPatientId] = useState(null);
+  const [patientBookings, setPatientBookings] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const userRaw = localStorage.getItem("ayursutra_user");
+    if (userRaw) {
+      try {
+        const user = JSON.parse(userRaw);
+        const pid = user.id || user.patient_id || user.patientId;
+        if (pid) {
+          setPatientId(pid);
+          fetchBookings(pid);
+        }
+      } catch (e) {
+        console.error("Error parsing user in Therapies.jsx", e);
+      }
+    }
+  }, []);
+
+  const fetchBookings = async (pid) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/bookings/patient/${pid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPatientBookings(data);
+      }
+    } catch (err) {
+      console.error("Error fetching patient bookings in Therapies.jsx", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const panchakarmaTherapies = [
     {
@@ -355,45 +393,317 @@ const Therapies = () => {
         );
       
       case 'assign':
+        if (!patientId) {
+          return (
+            <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-xl mx-auto border border-gray-100">
+              <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Access Restricted</h3>
+              <p className="text-gray-600 mb-6">Please log in to your patient account to see your assigned therapies.</p>
+            </div>
+          );
+        }
+
+        if (loading) {
+          return (
+            <div className="bg-white rounded-2xl shadow-lg p-12 text-center max-w-xl mx-auto border border-gray-100">
+              <p className="text-gray-600 animate-pulse font-medium">Fetching your assigned therapies...</p>
+            </div>
+          );
+        }
+
+        const activeBookings = patientBookings.filter(b => b.status !== 'cancelled');
+
+        if (activeBookings.length === 0) {
+          return (
+            <div className="bg-white rounded-2xl shadow-lg p-12 text-center max-w-xl mx-auto border border-gray-100">
+              <ClipboardDocumentListIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-800 mb-2">No Active Assignments</h3>
+              <p className="text-gray-600 mb-6">You do not have any assigned therapies currently. Start the Dosha Quiz with Sahayak or book a therapy from the Catalogue.</p>
+            </div>
+          );
+        }
+
         return (
-          <div className="space-y-6 sm:space-y-8">
+          <div className="space-y-8">
             <div className="text-center px-4 sm:px-0">
               <ClipboardDocumentListIcon className="w-12 h-12 sm:w-16 sm:h-16 text-green-600 mx-auto mb-4" />
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">Assign Therapies</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">Your Assigned Therapies</h2>
               <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
-                Assign specific Panchakarma therapies to patients based on their constitution, 
-                health conditions, and treatment goals. Create personalized therapy plans.
+                Here are the personalized Panchakarma therapies recommended and scheduled for you based on your clinical assessment.
               </p>
             </div>
-            
-            <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mx-4 sm:mx-0">
-              <h3 className="text-lg sm:text-xl font-semibold mb-6">Patient Therapy Assignment</h3>
-              <div className="text-center py-8 sm:py-12 text-gray-500">
-                <ClipboardDocumentListIcon className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-4 opacity-50" />
-                <p className="text-sm sm:text-base">Therapy assignment interface coming soon...</p>
-              </div>
+
+            <div className="grid grid-cols-1 gap-8 max-w-4xl mx-auto">
+              {activeBookings.map((booking) => {
+                const therapy = panchakarmaTherapies.find(
+                  t => t.name.toLowerCase() === booking.therapy_type.toLowerCase()
+                ) || {
+                  name: booking.therapy_type,
+                  title: 'Custom Assigned Therapy',
+                  emoji: '🧘‍♂️',
+                  duration: 'As scheduled',
+                  detailedDescription: 'Personalized treatment protocol prescribed by your attending doctor.',
+                  benefits: ['Promotes systemic balance', 'Aids detoxification'],
+                  conditions: ['General Wellness'],
+                  color: 'from-green-500 to-emerald-500'
+                };
+
+                return (
+                  <div key={booking.booking_id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mx-4 sm:mx-0">
+                    {/* Header */}
+                    <div className={`bg-gradient-to-r ${therapy.color} p-6 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+                      <div className="flex items-center space-x-4">
+                        <span className="text-4xl">{therapy.emoji}</span>
+                        <div>
+                          <h3 className="text-2xl font-bold">{therapy.name}</h3>
+                          <p className="text-sm opacity-90">{therapy.title}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-start sm:items-end gap-1.5">
+                        <span className="bg-white/25 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">
+                          Status: {booking.status}
+                        </span>
+                        <span className="text-sm opacity-90 font-medium">
+                          📅 {new Date(booking.scheduled_date).toLocaleDateString()} at {booking.scheduled_time.slice(0, 5)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-6 sm:p-8 space-y-6">
+                      {/* Clinical Rationale */}
+                      <div className="bg-green-50/55 rounded-xl p-5 border border-green-100">
+                        <h4 className="font-semibold text-green-900 mb-2 flex items-center">
+                          <SparklesIcon className="w-5 h-5 mr-2 text-green-600" />
+                          Clinical Rationale (Why this is assigned)
+                        </h4>
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                          Assigned to balance excess <strong className="text-green-800">{booking.dosha_type || therapy.dosha}</strong> dosha.
+                        </p>
+                        {booking.symptoms && (
+                          <div className="mt-3 text-xs text-gray-600">
+                            <strong className="text-gray-700">Addressed Symptoms:</strong> {booking.symptoms}
+                          </div>
+                        )}
+                        {booking.preferences && (
+                          <div className="mt-1.5 text-xs text-gray-600">
+                            <strong className="text-gray-700">Special Preferences:</strong> {booking.preferences}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Doctor and Location */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm border-b border-gray-100 pb-6">
+                        <div>
+                          <h5 className="font-semibold text-gray-700 mb-1.5">Assigned Practitioner</h5>
+                          <p className="text-gray-800 font-medium">{booking.doctor_name || "Dr. Priya Singh"}</p>
+                          <p className="text-xs text-gray-500">{booking.doctor_specialization || "Ayurvedic Specialist"}</p>
+                        </div>
+                        <div>
+                          <h5 className="font-semibold text-gray-700 mb-1.5">Clinic Location</h5>
+                          <p className="text-gray-800 font-medium">
+                            {booking.center_id === 2 ? "Vedic Healing Center - Pune" : booking.center_id === 3 ? "Holistic Ayurveda Clinic - Delhi" : "AyurSutra Wellness Center - Mumbai"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* About and Benefits */}
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold text-gray-800 text-base mb-2">About the Treatment</h4>
+                          <p className="text-sm text-gray-600 leading-relaxed">{therapy.detailedDescription}</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                          <div>
+                            <h4 className="font-semibold text-gray-800 text-sm mb-2 flex items-center">
+                              <CheckCircleIcon className="w-4 h-4 mr-1 text-green-500" /> Key Benefits
+                            </h4>
+                            <ul className="list-disc list-inside text-xs text-gray-600 space-y-1 pl-1">
+                              {therapy.benefits.slice(0, 4).map((b, i) => <li key={i}>{b}</li>)}
+                            </ul>
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-800 text-sm mb-2 flex items-center">
+                              <ClockIcon className="w-4 h-4 mr-1 text-blue-500" /> Therapy Plan & Duration
+                            </h4>
+                            <p className="text-xs text-gray-600">Expected Cycle Duration: <strong>{therapy.duration}</strong></p>
+                            <p className="text-xs text-gray-500 mt-1">Please ensure to follow the Purvakarma diet guidelines 2 days prior to your visit.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         );
-      
+
       case 'track':
+        if (!patientId) {
+          return (
+            <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-xl mx-auto border border-gray-100">
+              <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Access Restricted</h3>
+              <p className="text-gray-600 mb-6">Please log in to your patient account to track your therapy progress.</p>
+            </div>
+          );
+        }
+
+        if (loading) {
+          return (
+            <div className="bg-white rounded-2xl shadow-lg p-12 text-center max-w-xl mx-auto border border-gray-100">
+              <p className="text-gray-600 animate-pulse font-medium">Loading progress tracker...</p>
+            </div>
+          );
+        }
+
+        const activeTrackBookings = patientBookings.filter(b => b.status !== 'cancelled');
+
+        if (activeTrackBookings.length === 0) {
+          return (
+            <div className="bg-white rounded-2xl shadow-lg p-12 text-center max-w-xl mx-auto border border-gray-100">
+              <ChartBarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-800 mb-2">No Active Journeys</h3>
+              <p className="text-gray-600 mb-6">You have no active therapy journeys to track. Once an assignment is scheduled, progress stages will show up here.</p>
+            </div>
+          );
+        }
+
         return (
-          <div className="space-y-6 sm:space-y-8">
+          <div className="space-y-8">
             <div className="text-center px-4 sm:px-0">
               <ChartBarIcon className="w-12 h-12 sm:w-16 sm:h-16 text-green-600 mx-auto mb-4" />
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">Track Progress</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">Therapy Progress Tracker</h2>
               <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
-                Monitor patient progress throughout their Panchakarma journey. 
-                Track symptoms, improvements, and treatment effectiveness.
+                Panchakarma is completed in three distinct chronological stages. Follow your stage guidelines below.
               </p>
             </div>
-            
-            <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mx-4 sm:mx-0">
-              <h3 className="text-lg sm:text-xl font-semibold mb-6">Progress Tracking Dashboard</h3>
-              <div className="text-center py-8 sm:py-12 text-gray-500">
-                <ChartBarIcon className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-4 opacity-50" />
-                <p className="text-sm sm:text-base">Progress tracking dashboard coming soon...</p>
-              </div>
+
+            <div className="grid grid-cols-1 gap-8 max-w-4xl mx-auto">
+              {activeTrackBookings.map((booking) => {
+                const schedDate = new Date(booking.scheduled_date);
+                const today = new Date();
+                
+                schedDate.setHours(0,0,0,0);
+                today.setHours(0,0,0,0);
+
+                let currentStage = 1;
+                if (booking.status.toLowerCase() === 'completed') {
+                  currentStage = 4;
+                } else if (today.getTime() === schedDate.getTime()) {
+                  currentStage = 2;
+                } else if (today.getTime() > schedDate.getTime()) {
+                  currentStage = 3;
+                } else {
+                  currentStage = 1;
+                }
+
+                const stages = [
+                  {
+                    num: 1,
+                    title: "Purvakarma",
+                    subtitle: "Preparation",
+                    desc: "Oleation and steam treatments to prepare the body for detox.",
+                    duration: "2-3 days before"
+                  },
+                  {
+                    num: 2,
+                    title: "Pradhanakarma",
+                    subtitle: "Main Treatment",
+                    desc: "Elimination of toxins via the scheduled main therapy.",
+                    duration: "Treatment Day"
+                  },
+                  {
+                    num: 3,
+                    title: "Paschatkarma",
+                    subtitle: "Post-Treatment",
+                    desc: "Samsarjana Krama restoration diet to revive digestive fire.",
+                    duration: "3-5 days after"
+                  },
+                  {
+                    num: 4,
+                    title: "Rasayana",
+                    subtitle: "Rejuvenation",
+                    desc: "Nourishment phase to rebuild strength and lock in benefits.",
+                    duration: "Post-recovery"
+                  }
+                ];
+
+                return (
+                  <div key={booking.booking_id} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 mx-4 sm:mx-0">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-100 pb-4 mb-6 gap-3">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-800">{booking.therapy_type} Progress</h3>
+                        <p className="text-xs text-gray-500">Scheduled: {new Date(booking.scheduled_date).toLocaleDateString()}</p>
+                      </div>
+                      <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full uppercase tracking-wider">
+                        {currentStage === 4 ? "Completed" : `Stage ${currentStage} Active`}
+                      </span>
+                    </div>
+
+                    {/* Desktop Stepper Progress Bar */}
+                    <div className="hidden md:flex justify-between items-center relative mb-8 px-4">
+                      <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-200 -translate-y-1/2 z-0"></div>
+                      <div 
+                        className="absolute top-1/2 left-0 h-1 bg-green-500 -translate-y-1/2 z-0 transition-all duration-500"
+                        style={{ width: `${((currentStage - 1) / 3) * 100}%` }}
+                      ></div>
+                      
+                      {stages.map((stg) => {
+                        const isPast = stg.num < currentStage;
+                        const isActive = stg.num === currentStage;
+                        return (
+                          <div key={stg.num} className="relative z-10 flex flex-col items-center">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-300 ${
+                              isPast ? "bg-green-500 text-white" : isActive ? "bg-green-600 text-white ring-4 ring-green-100" : "bg-white border-2 border-gray-300 text-gray-500"
+                            }`}>
+                              {isPast ? "✓" : stg.num}
+                            </div>
+                            <span className={`text-xs font-bold mt-2 ${isActive ? "text-green-700" : "text-gray-500"}`}>{stg.title}</span>
+                            <span className="text-[10px] text-gray-400">{stg.subtitle}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Stages Details Stack */}
+                    <div className="space-y-4">
+                      {stages.map((stg) => {
+                        const isActive = stg.num === currentStage;
+                        const isPast = stg.num < currentStage;
+                        return (
+                          <div key={stg.num} className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-300 ${
+                            isActive ? "bg-green-50/50 border-green-200 shadow-sm" : isPast ? "bg-gray-50/50 border-gray-100 opacity-75" : "bg-white border-gray-100 opacity-60"
+                          }`}>
+                            <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs ${
+                              isPast ? "bg-green-500 text-white" : isActive ? "bg-green-600 text-white" : "bg-gray-100 text-gray-400 border border-gray-200"
+                            }`}>
+                              {isPast ? "✓" : stg.num}
+                            </div>
+                            <div className="flex-grow">
+                              <div className="flex justify-between items-center mb-1">
+                                <h4 className={`font-semibold text-sm sm:text-base ${isActive ? "text-green-900" : "text-gray-800"}`}>
+                                  {stg.title} <span className="text-xs text-gray-400 text-gray-500">({stg.subtitle})</span>
+                                </h4>
+                                <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-500"}`}>
+                                  {stg.duration}
+                                </span>
+                              </div>
+                              <p className="text-xs sm:text-sm text-gray-600">{stg.desc}</p>
+                              {isActive && (
+                                <div className="mt-3 text-xs bg-green-100/50 text-green-800 p-2.5 rounded-lg border border-green-200 flex items-center">
+                                  <span className="mr-1.5 animate-pulse">🟢</span>
+                                  <span><strong>Current Focus:</strong> Follow diet guidelines and avoid physical exhaustion today.</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         );
