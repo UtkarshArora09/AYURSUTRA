@@ -139,30 +139,36 @@ def get_embedding(text: str) -> list[float]:
         )
 
 
-def generate_llm_response(prompt: str) -> str:
-    """Generate LLM response trying Groq first, then seamlessly falling back to Google Gemini."""
+def generate_llm_response(prompt: str, fallback_chunks: list[dict] = None) -> str:
+    """Generate LLM response trying Groq first, then seamlessly falling back to Google Gemini, and finally knowledge chunks."""
     # 1. Attempt Groq generation if client and key are active
     if groq_client and GROQ_API_KEY:
-        try:
-            completion = groq_client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=500,
-            )
-            if completion.choices and completion.choices[0].message.content:
-                return completion.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"[Warning] Groq API call failed: {e}. Falling back to Google Gemini...")
+        groq_models = [GROQ_MODEL, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"]
+        for g_model in list(dict.fromkeys(groq_models)):
+            try:
+                completion = groq_client.chat.completions.create(
+                    model=g_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.3,
+                    max_tokens=600,
+                )
+                if completion.choices and completion.choices[0].message.content:
+                    return completion.choices[0].message.content.strip()
+            except Exception as e:
+                print(f"[Warning] Groq model '{g_model}' failed: {e}")
 
     # 2. Attempt Gemini generation if GEMINI_API_KEY is available
     if GEMINI_API_KEY:
-        for gemini_model in ["gemini-1.5-flash", "gemini-2.0-flash"]:
+        gemini_models = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash", "gemini-1.5-pro"]
+        for gemini_model in gemini_models:
             try:
                 gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={GEMINI_API_KEY}"
                 payload = {
                     "contents": [
-                        {"parts": [{"text": prompt}]}
+                        {
+                            "role": "user",
+                            "parts": [{"text": prompt}]
+                        }
                     ],
                     "generationConfig": {
                         "temperature": 0.3,
@@ -178,12 +184,17 @@ def generate_llm_response(prompt: str) -> str:
                         if parts and "text" in parts[0]:
                             return parts[0]["text"].strip()
                 else:
-                    print(f"[Warning] Gemini model {gemini_model} returned {res.status_code}: {res.text}")
+                    print(f"[Warning] Gemini model '{gemini_model}' returned status {res.status_code}: {res.text}")
             except Exception as e:
-                print(f"[Warning] Gemini {gemini_model} call error: {e}")
+                print(f"[Warning] Gemini '{gemini_model}' call error: {e}")
 
-    # 3. Fallback when all configured providers are unavailable
-    return "I'm sorry, I'm having trouble connecting to my AI core right now. Please try again in a moment, or contact the clinic."
+    # 3. Grounded fallback directly from retrieved knowledge base chunks
+    if fallback_chunks:
+        top_chunks_text = "\n\n".join(c["content"] for c in fallback_chunks[:2])
+        return f"{top_chunks_text}\n\n*For personalized medical guidance, please consult our AyurSutra Ayurvedic physicians.*"
+
+    # 4. Final safety fallback
+    return "I am unable to connect to the AI model right now. Please check our clinic services or contact our staff directly at +91 98765 43210."
 
 
 def get_chat_history(conn, session_id: str, limit: int = 10):
@@ -572,7 +583,7 @@ Patient Current Question: {query}
 Sahayak:"""
 
         # 4. Generate response via Groq / Gemini multi-provider
-        answer = generate_llm_response(system_prompt)
+        answer = generate_llm_response(system_prompt, fallback_chunks=vector_chunks)
 
         sources = list({c["source"] for c in vector_chunks}) if vector_chunks else []
         chunk_ids = [c["id"] for c in vector_chunks] if vector_chunks else []
