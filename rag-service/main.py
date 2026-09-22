@@ -145,8 +145,17 @@ def generate_llm_response(prompt: str, fallback_chunks: list[dict] = None) -> st
     """Generate LLM response trying Groq first, then seamlessly falling back to Google Gemini, and finally knowledge chunks."""
     # 1. Attempt Groq generation if client and key are active
     if groq_client and GROQ_API_KEY:
-        groq_models = [GROQ_MODEL, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"]
-        for g_model in list(dict.fromkeys(groq_models)):
+        groq_candidates = [GROQ_MODEL]
+        try:
+            m_list = groq_client.models.list()
+            if m_list and m_list.data:
+                for m in m_list.data:
+                    if not any(x in m.id for x in ["whisper", "guard", "vision", "embed"]):
+                        groq_candidates.append(m.id)
+        except Exception as e:
+            print(f"[Warning] Could not list Groq models: {e}")
+
+        for g_model in list(dict.fromkeys(groq_candidates)):
             try:
                 completion = groq_client.chat.completions.create(
                     model=g_model,
@@ -161,8 +170,23 @@ def generate_llm_response(prompt: str, fallback_chunks: list[dict] = None) -> st
 
     # 2. Attempt Gemini generation if GEMINI_API_KEY is available
     if GEMINI_API_KEY:
-        gemini_models = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-2.5-flash"]
-        for gemini_model in gemini_models:
+        gemini_models = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        try:
+            # Discover available models for key
+            list_res = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}", timeout=10)
+            if list_res.status_code == 200:
+                available_models = [
+                    m["name"].replace("models/", "")
+                    for m in list_res.json().get("models", [])
+                    if "generateContent" in m.get("supportedGenerationMethods", [])
+                ]
+                # prioritize 3.6-flash or first flash model
+                flash_models = [m for m in available_models if "flash" in m]
+                gemini_models = (flash_models + available_models + gemini_models)
+        except Exception as e:
+            print(f"[Warning] Could not fetch Gemini model list: {e}")
+
+        for gemini_model in list(dict.fromkeys(gemini_models)):
             try:
                 gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={GEMINI_API_KEY}"
                 payload = {
