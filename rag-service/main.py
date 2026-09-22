@@ -16,6 +16,7 @@ Run:
 """
 
 import os
+import glob
 import psycopg
 import requests
 from fastapi import FastAPI, HTTPException
@@ -23,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from groq import Groq
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
 
@@ -159,7 +161,7 @@ def generate_llm_response(prompt: str, fallback_chunks: list[dict] = None) -> st
 
     # 2. Attempt Gemini generation if GEMINI_API_KEY is available
     if GEMINI_API_KEY:
-        gemini_models = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash", "gemini-1.5-pro"]
+        gemini_models = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-2.5-flash"]
         for gemini_model in gemini_models:
             try:
                 gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={GEMINI_API_KEY}"
@@ -175,7 +177,7 @@ def generate_llm_response(prompt: str, fallback_chunks: list[dict] = None) -> st
                         "maxOutputTokens": 600
                     }
                 }
-                res = requests.post(gemini_url, json=payload, timeout=20)
+                res = requests.post(gemini_url, json=payload, headers={"Content-Type": "application/json"}, timeout=20)
                 if res.status_code == 200:
                     data = res.json()
                     candidates = data.get("candidates", [])
@@ -195,6 +197,45 @@ def generate_llm_response(prompt: str, fallback_chunks: list[dict] = None) -> st
 
     # 4. Final safety fallback
     return "I am unable to connect to the AI model right now. Please check our clinic services or contact our staff directly at +91 98765 43210."
+
+
+def reingest_knowledge_base(conn) -> int:
+    """Read all .md/.txt knowledge files, batch embed via Gemini, and load into kb_chunks."""
+    knowledge_dir = os.path.join(os.path.dirname(__file__), "knowledge")
+    docs = []
+    for path in glob.glob(os.path.join(knowledge_dir, "*.*")):
+        if path.endswith((".txt", ".md")):
+            with open(path, "r", encoding="utf-8") as f:
+                docs.append((os.path.basename(path), f.read()))
+    if not docs:
+        return 0
+
+    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=80, separators=["\n\n", "\n", ". ", " ", ""])
+    chunks = []
+    for source, text in docs:
+        for piece in splitter.split_text(text):
+            piece = piece.strip()
+            if piece:
+                chunks.append((source, piece))
+
+    if not chunks:
+        return 0
+
+    texts = [c[1] for c in chunks]
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key={GEMINI_API_KEY}"
+    requests_list = [{"model": "models/gemini-embedding-001", "content": {"parts": [{"text": t}]}, "outputDimensionality": 768} for t in texts]
+    response = requests.post(url, json={"requests": requests_list}, headers={"Content-Type": "application/json"}, timeout=60)
+    if response.status_code != 200:
+        raise Exception(f"Gemini batch embedding error: {response.text}")
+    embeddings = [emb["values"] for emb in response.json()["embeddings"]]
+
+    cur = conn.cursor()
+    cur.execute("TRUNCATE TABLE kb_chunks RESTART IDENTITY;")
+    for (source, text), emb in zip(chunks, embeddings):
+        cur.execute("INSERT INTO kb_chunks (content, source, embedding) VALUES (%s, %s, %s)", (text, source, emb))
+    conn.commit()
+    cur.close()
+    return len(chunks)
 
 
 def get_chat_history(conn, session_id: str, limit: int = 10):
@@ -535,8 +576,27 @@ def chat(req: ChatRequest):
 
         top_confidence = vector_chunks[0]["similarity"] if vector_chunks else 0.0
 
-        # If similarity search returns low quality and no personal DB context found, trigger low confidence fallback
+        # If similarity search returns low quality and no personal DB context found, trigger intelligent conversational response
         if (not vector_chunks or top_confidence < CONFIDENCE_THRESHOLD) and not personal_context:
+            gen_prompt = f"""You are Sahayak, AyurSutra's AI Ayurvedic assistant. You speak kindly, reassuringly, and ground your answers in Ayurvedic wisdom.
+
+LANGUAGES:
+- You must respond in the SAME language/dialect used by the patient (Hinglish, Hindi, or English).
+- If the patient asks in Hinglish (e.g. "mujhe anxiety ho rhi hai"), reply in Hinglish.
+- If the patient asks in Hindi, reply in Hindi.
+- If in English, reply in English.
+
+Patient Question: {query}
+
+Provide a helpful, empathetic Ayurvedic explanation and guidance (e.g. related Doshas like Vata/Pitta/Kapha, calming therapies like Shirodhara/Abhyanga, herbs, and diet). Suggest consulting an AyurSutra physician for formal medical assessment.
+Sahayak:"""
+            answer = generate_llm_response(gen_prompt)
+            if answer and not answer.startswith("I am unable"):
+                save_chat_history(conn, session_id, "user", query)
+                save_chat_history(conn, session_id, "assistant", answer)
+                log_interaction(conn, query, [], answer, top_confidence)
+                return ChatResponse(answer=answer, confidence=top_confidence)
+
             fallback = (
                 "I'm not fully sure about that from our Ayurveda knowledge base — "
                 "it is best to reach out to the AyurSutra clinic directly so a doctor or staff member can guide you. "
@@ -613,6 +673,8 @@ def root():
         "endpoints": {
             "health": "/health",
             "chat": "/chat (POST)",
+            "debug": "/debug-ai",
+            "reingest": "/reingest (POST/GET)",
             "docs": "/docs"
         }
     }
@@ -621,3 +683,60 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/debug-ai")
+def debug_ai():
+    logs = {}
+    logs["groq_configured"] = bool(GROQ_API_KEY)
+    logs["gemini_configured"] = bool(GEMINI_API_KEY)
+
+    # Test Groq
+    if groq_client and GROQ_API_KEY:
+        groq_results = {}
+        for gm in [GROQ_MODEL, "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama3-8b-8192"]:
+            try:
+                c = groq_client.chat.completions.create(
+                    model=gm,
+                    messages=[{"role": "user", "content": "Say OK"}],
+                    max_tokens=10
+                )
+                groq_results[gm] = {"status": "ok", "response": c.choices[0].message.content}
+            except Exception as e:
+                groq_results[gm] = {"status": "error", "error": str(e)}
+        logs["groq_tests"] = groq_results
+    else:
+        logs["groq_tests"] = "not_configured"
+
+    # Test Gemini
+    if GEMINI_API_KEY:
+        gemini_logs = {}
+        for m in ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-2.5-flash"]:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={GEMINI_API_KEY}"
+                payload = {
+                    "contents": [{"role": "user", "parts": [{"text": "Say OK"}]}],
+                    "generationConfig": {"maxOutputTokens": 10}
+                }
+                res = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=10)
+                gemini_logs[m] = {"status_code": res.status_code, "text": res.text[:200]}
+            except Exception as e:
+                gemini_logs[m] = {"error": str(e)}
+        logs["gemini_tests"] = gemini_logs
+    else:
+        logs["gemini_tests"] = "not_configured"
+
+    return logs
+
+
+@app.get("/reingest")
+@app.post("/reingest")
+def reingest():
+    conn = get_db_connection()
+    try:
+        count = reingest_knowledge_base(conn)
+        return {"status": "ok", "message": f"Successfully ingested {count} chunks into kb_chunks."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Re-ingestion failed: {str(e)}")
+    finally:
+        conn.close()
