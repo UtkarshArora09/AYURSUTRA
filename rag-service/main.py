@@ -44,7 +44,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-groq_client = Groq(api_key=GROQ_API_KEY)
+groq_client = None
+if GROQ_API_KEY:
+    try:
+        groq_client = Groq(api_key=GROQ_API_KEY)
+    except Exception as e:
+        print(f"[Warning] Failed to initialize Groq client: {e}")
 
 
 class ChatRequest(BaseModel):
@@ -102,7 +107,7 @@ def get_embedding(text: str) -> list[float]:
     if not GEMINI_API_KEY:
         raise HTTPException(
             status_code=500,
-            detail="GEMINI_API_KEY is not configured in .env."
+            detail="GEMINI_API_KEY is not configured in environment."
         )
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={GEMINI_API_KEY}"
     payload = {
@@ -114,17 +119,71 @@ def get_embedding(text: str) -> list[float]:
     }
     try:
         response = requests.post(url, json=payload, timeout=15)
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Gemini Embeddings API error: {response.text}"
-            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Network error calling Gemini Embeddings API: {str(e)}"
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Gemini Embeddings API error ({response.status_code}): {response.text}"
+        )
+    try:
         return response.json()["embedding"]["values"]
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch embeddings from Gemini API: {str(e)}"
+            detail=f"Failed to parse embedding values: {str(e)}"
         )
+
+
+def generate_llm_response(prompt: str) -> str:
+    """Generate LLM response trying Groq first, then seamlessly falling back to Google Gemini."""
+    # 1. Attempt Groq generation if client and key are active
+    if groq_client and GROQ_API_KEY:
+        try:
+            completion = groq_client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=500,
+            )
+            if completion.choices and completion.choices[0].message.content:
+                return completion.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"[Warning] Groq API call failed: {e}. Falling back to Google Gemini...")
+
+    # 2. Attempt Gemini generation if GEMINI_API_KEY is available
+    if GEMINI_API_KEY:
+        for gemini_model in ["gemini-1.5-flash", "gemini-2.0-flash"]:
+            try:
+                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={GEMINI_API_KEY}"
+                payload = {
+                    "contents": [
+                        {"parts": [{"text": prompt}]}
+                    ],
+                    "generationConfig": {
+                        "temperature": 0.3,
+                        "maxOutputTokens": 600
+                    }
+                }
+                res = requests.post(gemini_url, json=payload, timeout=20)
+                if res.status_code == 200:
+                    data = res.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts and "text" in parts[0]:
+                            return parts[0]["text"].strip()
+                else:
+                    print(f"[Warning] Gemini model {gemini_model} returned {res.status_code}: {res.text}")
+            except Exception as e:
+                print(f"[Warning] Gemini {gemini_model} call error: {e}")
+
+    # 3. Fallback when all configured providers are unavailable
+    return "I'm sorry, I'm having trouble connecting to my AI core right now. Please try again in a moment, or contact the clinic."
 
 
 def get_chat_history(conn, session_id: str, limit: int = 10):
@@ -512,18 +571,8 @@ Recent Chat History:
 Patient Current Question: {query}
 Sahayak:"""
 
-        # 4. Generate response via Groq
-        try:
-            completion = groq_client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=[{"role": "user", "content": system_prompt}],
-                temperature=0.3,
-                max_tokens=500,
-            )
-            answer = completion.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"Error calling Groq API: {e}")
-            answer = "I'm sorry, I'm having trouble connecting to my AI core right now. Please try again in a moment, or contact the clinic."
+        # 4. Generate response via Groq / Gemini multi-provider
+        answer = generate_llm_response(system_prompt)
 
         sources = list({c["source"] for c in vector_chunks}) if vector_chunks else []
         chunk_ids = [c["id"] for c in vector_chunks] if vector_chunks else []
@@ -542,6 +591,20 @@ Sahayak:"""
         )
     finally:
         conn.close()
+
+
+@app.get("/")
+@app.head("/")
+def root():
+    return {
+        "status": "online",
+        "service": "AyurSutra Advanced RAG Chatbot API",
+        "endpoints": {
+            "health": "/health",
+            "chat": "/chat (POST)",
+            "docs": "/docs"
+        }
+    }
 
 
 @app.get("/health")

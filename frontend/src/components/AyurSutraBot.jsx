@@ -13,8 +13,9 @@ import {
   BookOpenIcon,
 } from "@heroicons/react/24/outline";
 
-// Support configuring RAG service port via env or default to 8001
-const RAG_API_URL = (import.meta.env.VITE_RAG_API_URL || "http://localhost:8001").replace(/\/$/, "") + "/chat";
+// Support configuring RAG service URL via env (defaults to localhost:8001)
+const rawRagUrl = (import.meta.env.VITE_RAG_API_URL || "http://localhost:8001").trim();
+const RAG_API_URL = rawRagUrl.endsWith("/chat") ? rawRagUrl : `${rawRagUrl.replace(/\/$/, "")}/chat`;
 
 const AyurVaidya = () => {
   const [isOpen, setIsOpen] = useState(false);
