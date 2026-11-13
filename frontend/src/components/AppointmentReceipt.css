@@ -1,0 +1,130 @@
+.appointment-receipt-sheet {
+  background: white;
+  color: #172d25;
+  border: 1px solid #a9bdb4;
+  border-top: 5px solid #245f49;
+  border-radius: 10px;
+  padding: 24px;
+  font: 14px/1.45 system-ui, sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.appointment-receipt-brand,
+.appointment-receipt-heading,
+.appointment-receipt-check-in {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.appointment-receipt-brand img,
+.appointment-receipt-check-in svg {
+  flex: none;
+}
+
+.appointment-receipt-brand strong {
+  font-size: 19px;
+}
+
+.appointment-receipt-brand p,
+.appointment-receipt-kicker,
+.appointment-receipt-reference span,
+.appointment-receipt-details dt {
+  color: #425b50;
+  font-size: 12px;
+}
+
+.appointment-receipt-heading {
+  justify-content: space-between;
+  align-items: flex-start;
+  border-top: 1px solid #cddbd4;
+  margin-top: 18px;
+  padding-top: 18px;
+}
+
+.appointment-receipt-heading h2 {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin-top: 3px;
+}
+
+.appointment-receipt-reference {
+  text-align: right;
+  max-width: 42%;
+}
+
+.appointment-receipt-reference strong {
+  display: block;
+  font-size: 18px;
+}
+
+.appointment-receipt-status {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.appointment-receipt-status strong {
+  margin-left: 5px;
+  text-transform: capitalize;
+}
+
+.appointment-receipt-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin-top: 18px;
+}
+
+.appointment-receipt-details dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.appointment-receipt-address {
+  grid-column: 1 / -1;
+}
+
+.appointment-receipt-check-in {
+  justify-content: space-between;
+  border-top: 1px solid #cddbd4;
+  margin-top: 18px;
+  padding-top: 12px;
+}
+
+.appointment-receipt-check-in h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.appointment-receipt-print {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
+  body:has(> .appointment-receipt-print) {
+    background: white;
+    margin: 0;
+  }
+
+  body:has(> .appointment-receipt-print) > :not(.appointment-receipt-print) {
+    display: none !important;
+  }
+
+  body > .appointment-receipt-print {
+    display: block;
+    width: 100%;
+  }
+
+  .appointment-receipt-print .appointment-receipt-sheet {
+    break-inside: avoid;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

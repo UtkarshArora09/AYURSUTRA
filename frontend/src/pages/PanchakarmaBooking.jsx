@@ -277,15 +277,6 @@ const PanchakarmaBooking = () => {
     }
   };
 
-  // Receipt handlers
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleDownload = () => {
-    window.print();
-  };
-
   // Function to move to next step with validation
   const goToStep3 = () => {
     if (formData.selectedDoctor && formData.selectedCenter) {
@@ -770,11 +761,7 @@ const PanchakarmaBooking = () => {
 
             {/* Step 4: Confirmation with Receipt */}
             {step === 4 && confirmedBookingData && (
-              <AppointmentReceipt
-                bookingData={confirmedBookingData}
-                onPrint={handlePrint}
-                onDownload={handleDownload}
-              />
+              <AppointmentReceipt bookingData={confirmedBookingData} />
             )}
           </form>
         </div>
