@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { authHeaders, availableTimes } from "../api/auth";
 import React, { useState, useEffect } from "react";
 import {
@@ -658,7 +659,7 @@ const PanchakarmaBooking = () => {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {!loading && availableSlots.length === 0 && <p>No open times for this date.</p>}
+                        {!loading && availableSlots.length === 0 && <p>No open times for this date. <Link className="underline text-green-800" to={`/clinic/waitlist?${new URLSearchParams({ doctorId: formData.selectedDoctor.id, centerId: formData.selectedCenter.id, date: formData.selectedDate, therapy: getRecommendedTherapy(formData.doshaType).name })}`}>Join the waitlist</Link></p>}
                         {availableSlots.map((slot) => (
                           <div
                             key={slot.time}

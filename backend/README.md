@@ -21,3 +21,9 @@ Doctors can assign a therapist who is linked to their account, confirm sessions,
 The queue uses authenticated server-sent events. Configure a reverse proxy to allow streaming responses. Select a date, branch, and service in the staff queue. Call the next ticket and mark it served when the consultation ends. The estimated wait uses the last 30 days of completed consultations for that branch and service, and is shown after service-time data is available.
 
 The API stores appointment email jobs in PostgreSQL and retries failed deliveries. Set `EMAIL_USER` and `EMAIL_PASS` to enable the worker. The current setup uses Gmail SMTP.
+
+## Calendar, waitlist and treatment plans
+
+- Doctors and admins can open **Clinic calendar** from their dashboard and choose a branch and date. The calendar includes treatment-room capacity, shifts, leave, appointments and active waitlist holds.
+- Patients can join the waitlist from their dashboard or from a booking date with no open times. A cancelled or moved booking can offer its former slot to the first eligible waiting patient. The offer is held for up to two hours, ending at least 15 minutes before the appointment. Patients accept or decline in **Waitlist and offers**. A decline or expiry can offer the slot to the next eligible patient. Offers are shown in the portal.
+- Doctors can open **Treatment plans**, choose a patient who already has a booking or consultation with them, and schedule 2 to 20 sessions at one branch. Every session must be available before the plan is saved. The same page shows outcomes and lets doctors add session and course follow-up. Patients see their own plans from their dashboard.

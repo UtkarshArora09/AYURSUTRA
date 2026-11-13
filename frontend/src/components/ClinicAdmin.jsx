@@ -1,3 +1,4 @@
+import { CareLinks } from "./CareLinks";
 import { useEffect, useState } from "react";
 import { authHeaders } from "../api/auth";
 
@@ -42,6 +43,7 @@ export default function ClinicAdmin() {
   return (
     <section className="mx-auto max-w-6xl space-y-4 px-4 pb-12">
       <h2 className="text-2xl font-bold">Clinic operations</h2>
+      <CareLinks role="admin" />
       {error && <p role="alert" className="text-red-700">{error}</p>}
       {metrics && <div className="grid gap-3 sm:grid-cols-3">
         <p className="rounded border p-4">Average wait (30 days) <strong>{metrics.wait_minutes == null ? "—" : `${metrics.wait_minutes} min`}</strong></p>

@@ -16,6 +16,9 @@ const QueueManagement = lazy(() => import("./pages/QueueManagement"));
 const ClinicWorkspace = lazy(() => import("./components/ClinicWorkspace"));
 const PatientDashboard = lazy(() => import("./components/PatientDashboard"));
 const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
+const ClinicCalendar = lazy(() => import("./pages/ClinicCalendar"));
+const ClinicWaitlist = lazy(() => import("./pages/ClinicWaitlist"));
+const TreatmentPlans = lazy(() => import("./pages/TreatmentPlans"));
 const ResetPassword = lazy(() => import("./pages/newpassword"));
 
 
@@ -60,6 +63,10 @@ function App() {
             <Route path="/therapist-dashboard" element={<ClinicWorkspace />} />
             <Route path="/doctor-dashboard" element={<ClinicWorkspace />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
+
+            <Route path="/clinic/calendar" element={<ClinicCalendar />} />
+            <Route path="/clinic/waitlist" element={<ClinicWaitlist />} />
+            <Route path="/clinic/treatment-plans" element={<TreatmentPlans />} />
 
             {/* New password */}
             <Route path="/reset-password" element={<ResetPassword />} />

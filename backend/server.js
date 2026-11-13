@@ -37,6 +37,7 @@ app.use("/api/therapy", therapyRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/queue", require("./routes/queueRoutes"));
 app.use("/api/clinic", require("./routes/clinicRoutes"));
+app.use("/api/care", require("./routes/careRoutes"));
 app.use('/sitemap.xml', sitemapRoutes);
 
 // Root health check
@@ -61,6 +62,7 @@ async function start() {
   await migrate();
   const server = app.listen(PORT, process.env.HOST, () => console.log("AyurSutra API listening"));
   require("./models/notifications").startNotifications(server);
+  require("./models/clinicWaitlist").startWaitlistWorker(server);
   return server;
 }
 

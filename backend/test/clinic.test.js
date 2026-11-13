@@ -229,4 +229,62 @@ test("fresh database and authorized clinic workflows", async (t) => {
   stream.abort();
   const served = await call("/api/queue/mine", { token: other.token });
   assert.equal(served.status, "served");
+
+  const courseDate = daysAhead(15);
+  const nextCourseDate = daysAhead(16);
+  const course = {
+    patientId: patient.id, centerId: 2, title: "Test course", instructions: "Demo instructions",
+    sessions: [
+      { date: courseDate, time: "09:00", therapy: "Basti" },
+      { date: nextCourseDate, time: "09:00", therapy: "Basti" },
+      { date: daysAhead(17), time: "09:00", therapy: "Basti" },
+    ],
+  };
+  await call("/api/care/plans", {
+    method: "POST", token: doctorLogin.token, expected: 409,
+    body: { ...course, sessions: [course.sessions[0], course.sessions[0]] },
+  });
+  assert.deepEqual(await call("/api/care/plans", { token: patient.token }), []);
+  const plan = await call("/api/care/plans", { method: "POST", token: doctorLogin.token, expected: 201, body: course });
+  assert.deepEqual(await call("/api/care/plans", { token: other.token }), []);
+  const [visiblePlan] = await call("/api/care/plans", { token: patient.token });
+  assert.equal(visiblePlan.id, plan.id);
+  assert.equal(visiblePlan.sessions.length, 3);
+
+  const waiting = await call("/api/care/waitlist", {
+    method: "POST", token: other.token, expected: 201,
+    body: { doctorId: doctor.doctor_id, centerId: 2, therapy: "Basti", earliest: nextCourseDate, latest: nextCourseDate },
+  });
+  await call(`/api/bookings/${visiblePlan.sessions[1].id}/cancel`, { method: "PUT", token: patient.token });
+  const [offer] = await call("/api/care/waitlist", { token: other.token });
+  assert.equal(offer.status, "offered");
+  assert.equal(offer.date, nextCourseDate);
+  const calendar = await call(`/api/care/calendar?centerId=2&date=${nextCourseDate}`, { token: admin.token });
+  assert.equal(calendar.offers.length, 1);
+  assert.ok(calendar.shifts.length > 0);
+  assert.equal(calendar.appointments[0].status, "cancelled");
+  await call("/api/bookings", {
+    method: "POST", token: patient.token, expected: 409,
+    body: { ...booking, center_id: 2, scheduled_date: nextCourseDate, scheduled_time: "09:00" },
+  });
+  await call(`/api/care/waitlist/${waiting.id}/accept`, { method: "POST", token: patient.token, expected: 404 });
+  const accepted = await call(`/api/care/waitlist/${waiting.id}/accept`, { method: "POST", token: other.token });
+  const retryOffer = await call(`/api/care/waitlist/${waiting.id}/accept`, { method: "POST", token: other.token });
+  assert.equal(accepted.bookingId, retryOffer.bookingId);
+
+  await call(`/api/clinic/worklist/${visiblePlan.sessions[0].id}`, {
+    method: "PATCH", token: doctorLogin.token, expected: 204, body: { status: "completed", followUp: "Session follow-up" },
+  });
+  await call(`/api/clinic/worklist/${visiblePlan.sessions[2].id}`, {
+    method: "PATCH", token: doctorLogin.token, expected: 204, body: { status: "no_show" },
+  });
+  await call(`/api/care/plans/${plan.id}`, {
+    method: "PATCH", token: doctorLogin.token, expected: 204, body: { followUp: "Course follow-up" },
+  });
+  const [updatedPlan] = await call("/api/care/plans", { token: patient.token });
+  assert.equal(updatedPlan.sessions[0].status, "completed");
+  assert.equal(updatedPlan.sessions[0].followUp, "Session follow-up");
+  assert.equal(updatedPlan.sessions[1].status, "cancelled");
+  assert.equal(updatedPlan.sessions[2].status, "no_show");
+  assert.equal(updatedPlan.follow_up, "Course follow-up");
 });

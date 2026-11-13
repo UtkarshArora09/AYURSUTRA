@@ -1,3 +1,4 @@
+import { CareLinks } from "./CareLinks";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { authHeaders } from "../api/auth";
@@ -145,6 +146,7 @@ export default function ClinicWorkspace({ reportsOnly = false, embedded = false 
   return (
     <section className={`mx-auto max-w-5xl space-y-4 px-4 pb-10 ${embedded ? "" : "pt-24"}`}>
       <h1 className="text-2xl font-bold text-green-950">{reportsOnly ? "Medical reports" : role === "doctor" ? "Clinic schedule" : role === "therapist" ? "Assigned sessions" : "Your care timeline"}</h1>
+      {!reportsOnly && <CareLinks role={role} />}
       {!allowed && <p>Sign in to view your clinic workspace.</p>}
       {role === "doctor" && !reportsOnly && <Link className="underline text-green-800" to="/queue/manage">Manage the consultation queue</Link>}
       {error && <p role="alert" className="text-red-700">{error}</p>}

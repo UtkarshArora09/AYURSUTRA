@@ -179,7 +179,7 @@ const getBookingsByPatientId = async (req, res) => {
 
 const availability = async (req, res) => {
   try {
-    res.json(await Booking.availableTimes(req.query.doctorId, req.query.date, req.query.centerId, req.query.therapy));
+    res.json(await Booking.availableTimes(req.query.doctorId, req.query.date, req.query.centerId, req.query.therapy, req.user.id));
   } catch (error) {
     return rejectBookingError(error, res);
   }
