@@ -1,25 +1,23 @@
 require("dotenv").config();
 const bcrypt = require("bcryptjs");
-const db = require("./config/db"); // your database connection
+const db = require("./config/db");
+const migrate = require("./config/init-db");
 
 async function createAdmin() {
-  const name = "AyurAdmin";
-  const email = "adayur108@gmail.com";
-  const password = "@Ayadmin123"; // plain password
-  const role = "admin";
-
-  // Hash the password
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  const result = await db.query(
-    `INSERT INTO admins (name, email, password, role, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, NOW(), NOW())
-     RETURNING *`,
-    [name, email, hashedPassword, role]
+  const { ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD } = process.env;
+  if (!ADMIN_NAME || !ADMIN_EMAIL || !ADMIN_PASSWORD || ADMIN_PASSWORD.length < 12 ||
+      Buffer.byteLength(ADMIN_PASSWORD) > 72) {
+    throw new Error("Set ADMIN_NAME, ADMIN_EMAIL and a password of at least 12 characters and at most 72 bytes");
+  }
+  await migrate();
+  const { rowCount } = await db.query(
+    "INSERT INTO admins (name, email, password) VALUES ($1, $2, $3) ON CONFLICT (email) DO NOTHING",
+    [ADMIN_NAME, ADMIN_EMAIL.trim().toLowerCase(), await bcrypt.hash(ADMIN_PASSWORD, 12)]
   );
-
-  console.log("Admin created:", result.rows[0]);
-  process.exit();
+  console.log(rowCount ? "Admin account created" : "Admin account already exists");
 }
 
-createAdmin();
+createAdmin().catch((error) => {
+  console.error(error.code || error.message);
+  process.exitCode = 1;
+}).finally(() => db.end());

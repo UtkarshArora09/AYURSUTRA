@@ -1,3 +1,4 @@
+import { QRCodeSVG } from "qrcode.react";
 import React, { useRef } from 'react';
 import { 
   CheckCircleIcon, 
@@ -13,19 +14,8 @@ import {
   DocumentTextIcon
 } from '@heroicons/react/24/outline';
 
-const AppointmentReceipt = ({ bookingData, onPrint, onDownload }) => {
+const AppointmentReceipt = ({ bookingData, onPrint }) => {
   const receiptRef = useRef();
-
-  const generateQRCode = (data) => {
-    const qrData = encodeURIComponent(JSON.stringify({
-      bookingId: bookingData.booking_id || bookingData.bookingId || "N/A",
-      patientId: bookingData.patient_id || bookingData.patientId || "N/A",
-      date: bookingData.scheduled_date || bookingData.selectedDate || "N/A",
-      time: bookingData.scheduled_time || bookingData.selectedTimeSlot?.time || "N/A",
-      doctorId: bookingData.doctor_id || bookingData.selectedDoctor?.id || "N/A"
-    }));
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrData}`;
-  };
 
   const downloadPDF = () => {
     // In a real implementation, use libraries like jsPDF or html2pdf
@@ -245,16 +235,11 @@ const AppointmentReceipt = ({ bookingData, onPrint, onDownload }) => {
                   Quick Check-in
                 </h3>
                 <div className="flex justify-center mb-4">
-                  <img
-                    src={generateQRCode({
-                      bookingId: bookingData.bookingId,
-                      patientId: bookingData.patientId,
-                      selectedDate: bookingData.selectedDate,
-                      selectedTimeSlot: bookingData.selectedTimeSlot,
-                      selectedDoctor: bookingData.selectedDoctor
-                    })}
-                    alt="Booking QR Code"
-                    className="w-32 h-32 border-2 border-gray-200 rounded-lg"
+                  <QRCodeSVG
+                    value={`AyurSutra booking ${bookingData.booking_id || bookingData.bookingId}`}
+                    title="Booking QR code"
+                    size={128}
+                    className="border-2 border-gray-200 rounded-lg"
                   />
                 </div>
                 <p className="text-sm text-gray-600">

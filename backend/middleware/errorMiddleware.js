@@ -1,13 +1,13 @@
-// Centralized error handler
-const errorHandler = (err, req, res, next) => {
-  console.error(" Error:", err);
-
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-
-  res.status(statusCode).json({
-    message: err.message || "Something went wrong",
-    stack: process.env.NODE_ENV === "production" ? null : err.stack,
-  });
-};
+function errorHandler(error, req, res, next) {
+  if (res.headersSent) return next(error);
+  if (error.type === "entity.parse.failed") {
+    return res.status(400).json({ message: "Invalid JSON body" });
+  }
+  if (error.type === "entity.too.large") {
+    return res.status(413).json({ message: "Request body too large" });
+  }
+  console.error("Request failed:", error.code || error.name);
+  res.status(500).json({ message: "Request failed" });
+}
 
 module.exports = { errorHandler };

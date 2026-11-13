@@ -2,6 +2,12 @@
 
 const db = require("../config/db");
 
+const profileColumns = "patient_id, first_name, last_name, gender, dob, age, mob_number, email, blood_group, address, emergency_contact_name, emergency_contact_number, allergies, medical_history, dosha, role";
+const editableColumns = new Set([
+  "first_name", "last_name", "gender", "dob", "age", "mob_number", "blood_group",
+  "address", "emergency_contact_name", "emergency_contact_number", "allergies", "medical_history",
+]);
+
 // Helper to convert camelCase keys to snake_case for update
 function camelToSnake(str) {
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
@@ -85,7 +91,7 @@ const Patient = {
   // Get all patients
   async findAll() {
     const result = await db.query(
-      "SELECT * FROM patients ORDER BY created_at DESC"
+      "SELECT patient_id, first_name, last_name, email, role, created_at FROM patients ORDER BY created_at DESC"
     );
     return result.rows;
   },
@@ -93,7 +99,7 @@ const Patient = {
   // Get patient by ID
   async findById(patientId) {
     const result = await db.query(
-      "SELECT * FROM patients WHERE patient_id = $1",
+      `SELECT ${profileColumns} FROM patients WHERE patient_id = $1`,
       [patientId]
     );
     return result.rows[0];
@@ -110,7 +116,7 @@ const Patient = {
   // Update patient
   async update(patientId, fields) {
     const keys = Object.keys(fields);
-    if (keys.length === 0) return null;
+    if (!keys.length || keys.some((key) => !editableColumns.has(camelToSnake(key)))) return null;
 
     // Convert camelCase keys to snake_case column names
     const snakeKeys = keys.map(camelToSnake);
@@ -124,7 +130,7 @@ const Patient = {
     const result = await db.query(
       `UPDATE patients SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE patient_id = $${
         keys.length + 1
-      } RETURNING *`,
+      } RETURNING ${profileColumns}`,
       [...values, patientId]
     );
 
@@ -162,12 +168,12 @@ const Patient = {
   },
 
   // Reset password
-  async updatePassword(patientId, hashedPassword) {
+  async updatePassword(patientId, hashedPassword, token) {
     const result = await db.query(
       `UPDATE patients 
        SET password = $1, reset_token = NULL, reset_token_expiry = NULL, updated_at = CURRENT_TIMESTAMP
-       WHERE patient_id = $2 RETURNING *`,
-      [hashedPassword, patientId]
+       WHERE patient_id = $2 AND reset_token = $3 AND reset_token_expiry > NOW() RETURNING patient_id`,
+      [hashedPassword, patientId, token]
     );
     return result.rows[0];
   },

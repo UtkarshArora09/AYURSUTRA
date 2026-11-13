@@ -1,3 +1,4 @@
+import { authHeaders } from "../api/auth";
 import React, { useState, useEffect } from 'react';
 
 import { 
@@ -44,7 +45,7 @@ const Therapies = () => {
   const fetchBookings = async (pid) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/bookings/patient/${pid}`);
+      const res = await fetch(`${API_BASE_URL}/api/bookings/patient/${pid}`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setPatientBookings(data);

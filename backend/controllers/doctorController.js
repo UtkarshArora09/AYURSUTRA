@@ -23,6 +23,7 @@ exports.getDoctorById = async (req, res) => {
 };
 
 exports.updateDoctor = async (req, res) => {
+  if (req.params.id !== String(req.user.id)) return res.status(404).json({ message: "Account not found" });
   try {
     const doctor = await Doctor.update(req.params.id, req.body);
     res.json(doctor);
@@ -32,6 +33,7 @@ exports.updateDoctor = async (req, res) => {
 };
 
 exports.deleteDoctor = async (req, res) => {
+  if (req.params.id !== String(req.user.id)) return res.status(404).json({ message: "Account not found" });
   try {
     await Doctor.remove(req.params.id);
     res.json({ message: "Doctor deleted" });

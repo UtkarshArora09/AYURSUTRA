@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Therapies from "./pages/Therapies";
@@ -12,8 +12,6 @@ import PanchakarmaBooking from "./pages/PanchakarmaBooking";
 import PanchakarmaReschedule from "./pages/PanchakarmaReschedule";
 import JoinQueue from "./pages/JoinQueue";
 import QueueManagement from "./pages/QueueManagement";
-import QueueRescheduleCancel from "./components/QueueRescheduleCancel";
-import QueueTrends from "./pages/QueueTrends";
 import DoctorDashboard from "./components/DoctorDashboard";
 import PatientDashboard from "./components/PatientDashboard";
 import AdminDashboard from "./components/AdminDashboard";
@@ -47,15 +45,15 @@ function App() {
             {/* General Appointment Routes - Using Queue System */}
             <Route path="/queue/join" element={<JoinQueue />} />
             <Route path="/queue/manage" element={<QueueManagement />} />
-            <Route path="/queue/reschedule-cancel" element={<QueueRescheduleCancel />} />
+            <Route path="/queue/reschedule-cancel" element={<Navigate to="/queue/join" replace />} />
 
             {/* Alternative routes for consistency */}
-            <Route path="/appointments/general/reschedule" element={<QueueRescheduleCancel />} />
+            <Route path="/appointments/general/reschedule" element={<Navigate to="/queue/join" replace />} />
 
             {/* Queue Routes */}
-            <Route path="/queue" element={<QueueTrends />} />
+            <Route path="/queue" element={<Navigate to="/queue/join" replace />} />
             <Route path="/dashboard" element={<PatientDashboard />} />
-            <Route path="/queuetrends" element={<QueueTrends />} />
+            <Route path="/queuetrends" element={<Navigate to="/queue/join" replace />} />
             <Route path="/patient-dashboard" element={<PatientDashboard />} />
             <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />

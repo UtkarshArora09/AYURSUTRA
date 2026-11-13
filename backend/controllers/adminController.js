@@ -11,16 +11,13 @@ const { getJwtSecret } = require("../config/auth");
 exports.loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("Login attempt:", email, password);
 
     const admin = await Admin.findByEmail(email);
     if (!admin) {
-      console.log("No admin found with email:", email);
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, admin.password);
-    console.log("Password match:", isMatch);
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
 
@@ -41,7 +38,7 @@ exports.loginAdmin = async (req, res) => {
     res.status(200).json({ token, user: adminData }); // send as "user" to match frontend expectations
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 
@@ -77,7 +74,7 @@ exports.registerDoctor = async (req, res) => {
       .status(201)
       .json({ message: "Doctor registered successfully", doctor: newDoctor });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 
@@ -114,7 +111,7 @@ exports.registerTherapist = async (req, res) => {
       therapist: newTherapist,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 
@@ -124,7 +121,7 @@ exports.getDoctors = async (req, res) => {
     const doctors = await Doctor.findAll();
     res.json(doctors);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 exports.getDoctorById = async (req, res) => {
@@ -133,7 +130,7 @@ exports.getDoctorById = async (req, res) => {
     if (!doctor) return res.status(404).json({ message: "Doctor not found" });
     res.json(doctor);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 exports.updateDoctor = async (req, res) => {
@@ -141,7 +138,7 @@ exports.updateDoctor = async (req, res) => {
     const updated = await Doctor.update(req.params.id, req.body);
     res.json({ message: "Doctor updated", doctor: updated });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 exports.deleteDoctor = async (req, res) => {
@@ -149,7 +146,7 @@ exports.deleteDoctor = async (req, res) => {
     const deleted = await Doctor.remove(req.params.id);
     res.json({ message: "Doctor deleted", doctor: deleted });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 
@@ -159,7 +156,7 @@ exports.getTherapists = async (req, res) => {
     const therapists = await Therapist.findAll();
     res.json(therapists);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 exports.getTherapistById = async (req, res) => {
@@ -169,7 +166,7 @@ exports.getTherapistById = async (req, res) => {
       return res.status(404).json({ message: "Therapist not found" });
     res.json(therapist);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 exports.updateTherapist = async (req, res) => {
@@ -177,7 +174,7 @@ exports.updateTherapist = async (req, res) => {
     const updated = await Therapist.update(req.params.id, req.body);
     res.json({ message: "Therapist updated", therapist: updated });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 exports.deleteTherapist = async (req, res) => {
@@ -185,7 +182,7 @@ exports.deleteTherapist = async (req, res) => {
     const deleted = await Therapist.remove(req.params.id);
     res.json({ message: "Therapist deleted", therapist: deleted });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 
@@ -195,7 +192,7 @@ exports.getPatients = async (req, res) => {
     const patients = await Patient.findAll();
     res.json(patients);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };
 
@@ -205,6 +202,6 @@ exports.getTherapies = async (req, res) => {
     const therapies = await Therapy.findAll();
     res.json(therapies);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Admin request failed" });
   }
 };

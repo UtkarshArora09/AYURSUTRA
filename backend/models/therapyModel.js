@@ -23,8 +23,9 @@ const Therapy = {
   },
 
   async update(id, fields) {
-    const keys = Object.keys(fields);
-    const values = Object.values(fields);
+    const keys = Object.keys(fields).filter((key) => ["name", "description", "duration", "cost"].includes(key));
+    if (!keys.length) return this.findById(id);
+    const values = keys.map((key) => fields[key]);
 
     const setClause = keys.map((key, i) => `${key}=$${i + 1}`).join(", ");
     const result = await db.query(

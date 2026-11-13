@@ -1,3 +1,5 @@
+import { authHeaders } from "../api/auth";
+import { QRCodeSVG } from "qrcode.react";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -13,7 +15,7 @@ import {
   PrinterIcon,
 } from "@heroicons/react/24/outline";
 
-const FIREBASE_DB_URL = "https://digital-queue-system-ca4a3-default-rtdb.firebaseio.com";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 const hospitals = [
   "Promhex Multispeciality Hospital",
@@ -72,74 +74,32 @@ const JoinQueue = () => {
       }
     }
 
-    // 2. Fetch saved ticket from localStorage
-    const savedTicketRaw = localStorage.getItem("ayursutra_current_queue");
-    if (savedTicketRaw) {
-      try {
-        const ticket = JSON.parse(savedTicketRaw);
-        setActiveTicket(ticket);
-      } catch (e) {
-        console.error("Error parsing saved ticket", e);
-      }
-    }
+    localStorage.removeItem("ayursutra_current_queue");
   }, []);
 
-  // Poll Firebase to check current live position if there is an active ticket
   useEffect(() => {
-    if (!activeTicket) return;
-
-    const checkLiveStatus = async () => {
+    if (!authHeaders().Authorization) return;
+    let mounted = true;
+    const refresh = async () => {
       try {
-        const response = await fetch(`${FIREBASE_DB_URL}/queues/${activeTicket.firebaseDate}.json`);
-        if (!response.ok) throw new Error("Failed to fetch queue status");
-        
-        const data = await response.json();
-        
-        // If the ticket has been deleted (i.e. patient was served or removed by doctor)
-        if (!data || !data[activeTicket.key]) {
-          localStorage.removeItem("ayursutra_current_queue");
-          setActiveTicket(null);
-          setCurrentLivePosition(null);
-          alert("Your queue ticket has been processed or cleared by the coordinator.");
-          return;
+        const response = await fetch(`${API_BASE_URL}/api/queue/mine`, { headers: authHeaders() });
+        if (!response.ok || !mounted) return;
+        const ticket = await response.json();
+        if (mounted) {
+          setActiveTicket(ticket ? { ...ticket, key: ticket.id } : null);
+          setCurrentLivePosition(ticket?.position || null);
         }
-
-        // Calculate current position: convert to array and sort
-        const list = Object.keys(data).map(k => ({
-          id: k,
-          ...data[k],
-        }));
-
-        list.sort((a, b) => {
-          if (a.priority === "emergency" && b.priority !== "emergency") return -1;
-          if (b.priority === "emergency" && a.priority !== "emergency") return 1;
-          return (a.timestamp || 0) - (b.timestamp || 0);
-        });
-
-        // Find patient index
-        const idx = list.findIndex(item => item.id === activeTicket.key);
-        if (idx !== -1) {
-          const livePos = idx + 1;
-          setCurrentLivePosition(livePos);
-          
-          // Check if priority changed to emergency
-          if (list[idx].priority === "emergency" && activeTicket.priority !== "emergency") {
-            setActiveTicket(prev => ({
-              ...prev,
-              priority: "emergency"
-            }));
-          }
-        }
-      } catch (err) {
-        console.error("Error checking live position:", err);
+      } catch (error) {
+        console.error("Unable to refresh queue ticket", error);
       }
     };
-
-    // Run immediately and then poll every 4 seconds
-    checkLiveStatus();
-    const interval = setInterval(checkLiveStatus, 4000);
-    return () => clearInterval(interval);
-  }, [activeTicket]);
+    refresh();
+    const interval = setInterval(refresh, 4000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [currentUser]);
 
   // Handle Form Submission (Join Queue)
   const handleJoinQueue = async (e) => {
@@ -165,55 +125,17 @@ const JoinQueue = () => {
     setLoading(true);
 
     try {
-      // 1. Fetch today's count to establish queue position
-      const date = appointmentDate;
-      const response = await fetch(`${FIREBASE_DB_URL}/queues/${date}.json`);
-      if (!response.ok) throw new Error("Failed to fetch current queues");
-      
-      const data = await response.json();
-      const count = data ? Object.keys(data).length : 0;
-      const nextPosition = count + 1;
-
-      // 2. Build payload
-      const timestamp = Date.now();
-      const payload = {
-        name: patientName,
-        phone: patientPhone,
-        timestamp,
-        date,
-        hospital: selectedHospital,
-        service: selectedService,
-        position: nextPosition,
-        system: "AyurSutra Digital Queue",
-        status: "waiting",
-      };
-
-      // 3. Post to Firebase
-      const postResponse = await fetch(`${FIREBASE_DB_URL}/queues/${date}.json`, {
+      const response = await fetch(`${API_BASE_URL}/api/queue`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: patientName, phone: patientPhone, date: appointmentDate,
+          hospital: selectedHospital, service: selectedService,
+        }),
       });
-
-      if (!postResponse.ok) throw new Error("Failed to push queue ticket");
-      const result = await postResponse.json();
-      
-      // 4. Save ticket to state & localStorage
-      const ticketInfo = {
-        key: result.name, // Firebase key (e.g. -NJskd...)
-        firebaseDate: date,
-        name: patientName,
-        phone: patientPhone,
-        date,
-        hospital: selectedHospital,
-        service: selectedService,
-        position: nextPosition,
-        timestamp,
-      };
-
-      localStorage.setItem("ayursutra_current_queue", JSON.stringify(ticketInfo));
-      setActiveTicket(ticketInfo);
-      setCurrentLivePosition(nextPosition);
+      const ticket = await response.json();
+      if (!response.ok) throw new Error(ticket.message || "Unable to join the queue");
+      setActiveTicket({ ...ticket, key: ticket.id });
     } catch (err) {
       console.error(err);
       alert("Error joining queue: " + err.message);
@@ -230,11 +152,11 @@ const JoinQueue = () => {
 
     setLoading(true);
     try {
-      await fetch(`${FIREBASE_DB_URL}/queues/${activeTicket.firebaseDate}/${activeTicket.key}.json`, {
+      const response = await fetch(`${API_BASE_URL}/api/queue/${activeTicket.id}`, {
         method: "DELETE",
+        headers: authHeaders(),
       });
-
-      localStorage.removeItem("ayursutra_current_queue");
+      if (!response.ok) throw new Error("Unable to cancel this ticket");
       setActiveTicket(null);
       setCurrentLivePosition(null);
       
@@ -253,8 +175,13 @@ const JoinQueue = () => {
   const handlePrint = () => {
     if (!activeTicket) return;
     const printWindow = window.open("", "_blank");
-    const ticketPosition = currentLivePosition || activeTicket.position;
+    const ticketPosition = currentLivePosition || activeTicket.position || "Calculating";
     
+    const text = (value) => {
+      const node = document.createElement("span");
+      node.textContent = value ?? "";
+      return node.innerHTML;
+    };
     printWindow.document.write(`
       <html>
         <head>
@@ -371,23 +298,23 @@ const JoinQueue = () => {
             </div>
             <div class="info-row">
               <span class="info-label">👤 Patient:</span>
-              <span class="info-value">${activeTicket.name}</span>
+              <span class="info-value">${text(activeTicket.name)}</span>
             </div>
             <div class="info-row">
               <span class="info-label">📱 Phone:</span>
-              <span class="info-value">${activeTicket.phone}</span>
+              <span class="info-value">${text(activeTicket.phone)}</span>
             </div>
             <div class="info-row">
               <span class="info-label">📅 Date:</span>
-              <span class="info-value">${activeTicket.date}</span>
+              <span class="info-value">${text(activeTicket.date)}</span>
             </div>
             <div class="info-row">
               <span class="info-label">🏥 Hospital:</span>
-              <span class="info-value">${activeTicket.hospital}</span>
+              <span class="info-value">${text(activeTicket.hospital)}</span>
             </div>
             <div class="info-row">
               <span class="info-label">⚕️ Service:</span>
-              <span class="info-value">${activeTicket.service}</span>
+              <span class="info-value">${text(activeTicket.service)}</span>
             </div>
             <div class="queue-highlight">
               <div style="font-size: 13px; color: #15803d; margin-bottom: 5px;">Queue Position</div>
@@ -398,7 +325,7 @@ const JoinQueue = () => {
               <p>• Present at reception desk</p>
               <div class="status">CONFIRMED APPOINTMENT</div>
               <p style="margin-top: 8px; font-style: italic;">
-                Issued: ${new Date(activeTicket.timestamp).toLocaleString()}
+                Issued: ${new Date(Number(activeTicket.timestamp)).toLocaleString()}
               </p>
             </div>
           </div>
@@ -416,7 +343,7 @@ const JoinQueue = () => {
   // Get WhatsApp Link
   const getWhatsAppLink = () => {
     if (!activeTicket) return "#";
-    const ticketPosition = currentLivePosition || activeTicket.position;
+    const ticketPosition = currentLivePosition || activeTicket.position || "Calculating";
     
     const message = `🌿 *AyurSutra Digital Queue System*
 
@@ -442,18 +369,6 @@ Helpline: 1800-AYUR-CARE`;
   };
 
   // QR Code String
-  const getQrDataString = () => {
-    if (!activeTicket) return "";
-    const ticketPosition = currentLivePosition || activeTicket.position;
-    return encodeURIComponent(`🌿 AyurSutra Digital Queue Ticket
-👤 Patient: ${activeTicket.name}
-📱 Phone: ${activeTicket.phone}
-📅 Date: ${activeTicket.date}
-🏥 Hospital: ${activeTicket.hospital}
-⚕️ Service: ${activeTicket.service}
-🎟️ Position: #${ticketPosition}`);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-green-50 pt-24 pb-12 px-4 md:px-8">
       <div className="max-w-4xl mx-auto">
@@ -475,10 +390,10 @@ Helpline: 1800-AYUR-CARE`;
               <h3 className="text-lg md:text-xl font-bold">Successfully Joined Queue!</h3>
               <div className="mt-4 flex flex-col md:flex-row gap-4 justify-center items-center text-sm font-medium">
                 <div className="bg-white/20 px-4 py-2 rounded-xl">
-                  Live Position: <strong className="text-yellow-200 text-base">#{currentLivePosition || activeTicket.position}</strong>
+                  Live Position: <strong className="text-yellow-200 text-base">{currentLivePosition || activeTicket.position ? `#${currentLivePosition || activeTicket.position}` : "Calculating…"}</strong>
                 </div>
                 <div className="bg-white/20 px-4 py-2 rounded-xl">
-                  Est. Wait: <strong className="text-yellow-200 text-base">{(currentLivePosition || activeTicket.position) * 5} mins</strong>
+                  Est. Wait: <strong className="text-yellow-200 text-base">{currentLivePosition || activeTicket.position ? `${(currentLivePosition || activeTicket.position) * 5} mins` : "Calculating…"}</strong>
                 </div>
                 {activeTicket.priority === "emergency" && (
                   <div className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold animate-bounce">
@@ -535,10 +450,10 @@ Helpline: 1800-AYUR-CARE`;
 
               {/* QR Code */}
               <div className="flex flex-col items-center justify-center p-4 bg-green-50 rounded-2xl border-2 border-green-100 mb-6">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${getQrDataString()}`}
-                  alt="Queue QR Ticket"
-                  className="w-40 h-40 border-4 border-white rounded-xl shadow-md transition-transform hover:scale-105"
+                <QRCodeSVG
+                  value={`AyurSutra queue ticket ${activeTicket.key}`}
+                  title="Queue ticket QR code"
+                  size={220}
                 />
                 <span className="text-xs text-green-700 font-semibold mt-2 flex items-center gap-1">
                   <QrCodeIcon className="w-4 h-4" /> Scan at reception to check-in

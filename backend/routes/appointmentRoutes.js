@@ -7,7 +7,7 @@ const { protect, authorize } = require("../middleware/authMiddleware");
 router.get(
   "/",
   protect,
-  authorize("doctor", "therapist"),
+  authorize("patient", "doctor", "therapist"),
   appointmentController.getAppointments
 );
 

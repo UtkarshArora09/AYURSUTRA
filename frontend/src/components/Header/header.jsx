@@ -309,7 +309,6 @@ const Header = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Patient login failed");
 
-      console.log("Login success:", data);
 
       // Build full name safely from first_name and last_name
       const fullName =

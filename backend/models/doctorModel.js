@@ -1,3 +1,4 @@
+const bcrypt = require("bcryptjs");
 const db = require("../config/db");
 
 const Doctor = {
@@ -17,7 +18,7 @@ const Doctor = {
       `INSERT INTO doctors 
        (name, email, password, phone, specialization, experience_years, qualification, clinic_address, role, created_at, updated_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())
-       RETURNING *`,
+       RETURNING doctor_id AS id, name, email, role`,
       [
         name,
         email,
@@ -65,14 +66,15 @@ const Doctor = {
 
   //  Update doctor
   async update(id, fields) {
-    const keys = Object.keys(fields);
-    const values = Object.values(fields);
+    const keys = Object.keys(fields).filter((key) => ["name", "email", "password", "phone", "specialization", "experience_years", "qualification", "clinic_address"].includes(key));
+    if (!keys.length) return this.findById(id);
+    const values = await Promise.all(keys.map((key) => key === "password" ? bcrypt.hash(fields[key], 10) : fields[key]));
 
     const setClause = keys.map((key, i) => `${key}=$${i + 1}`).join(", ");
     const result = await db.query(
       `UPDATE doctors SET ${setClause}, updated_at=NOW() WHERE doctor_id=$${
         keys.length + 1
-      } RETURNING *`,
+      } RETURNING doctor_id AS id, name, email, role`,
       [...values, id]
     );
     return result.rows[0];
@@ -81,7 +83,7 @@ const Doctor = {
   //  Delete doctor
   async remove(id) {
     const result = await db.query(
-      `DELETE FROM doctors WHERE doctor_id=$1 RETURNING *`,
+      `DELETE FROM doctors WHERE doctor_id=$1 RETURNING doctor_id AS id, name, email, role`,
       [id]
     );
     return result.rows[0];

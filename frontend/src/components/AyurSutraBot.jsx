@@ -24,16 +24,15 @@ const AyurVaidya = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [userName, setUserName] = useState(null);
   const [conversationStage, setConversationStage] = useState("greeting"); // greeting -> consultation
-  const [patientId, setPatientId] = useState(null);
   const [isQuizActive, setIsQuizActive] = useState(false);
   const [isEmergency, setIsEmergency] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const [sessionId, setSessionId] = useState(() => {
-    let id = sessionStorage.getItem("ayursutra_chat_session");
+  const [sessionId] = useState(() => {
+    let id = sessionStorage.getItem("ayursutra_chat_session_v2");
     if (!id) {
-      id = "session_" + Math.random().toString(36).substring(2, 15);
-      sessionStorage.setItem("ayursutra_chat_session", id);
+      id = crypto.randomUUID();
+      sessionStorage.setItem("ayursutra_chat_session_v2", id);
     }
     return id;
   });
@@ -42,25 +41,22 @@ const AyurVaidya = () => {
   useEffect(() => {
     const userRaw = localStorage.getItem("ayursutra_user");
     let name = null;
-    let pid = null;
 
     if (userRaw) {
       try {
         const user = JSON.parse(userRaw);
-        pid = user.id || user.patient_id || user.patientId || null;
         name = user.name || user.first_name || null;
       } catch (e) {
         console.error("Error parsing logged in user details", e);
       }
     }
 
-    setPatientId(pid);
 
     let welcomeText = "";
     if (name) {
       setUserName(name);
       setConversationStage("consultation");
-      welcomeText = `🙏 **Namaste, ${name}!** \n\nWelcome back to Sahayak. As you are logged in, I can query your profile, upcoming appointments, and queue status in real-time.\n\n**How can I assist you today?**\n• Check my next appointment\n• Start interactive Dosha quiz\n• Ask about therapies & FAQs\n• Hinglish commands (e.g. "Mujhe Basti therapy batao")`;
+      welcomeText = `🙏 **Namaste, ${name}!** \n\nWelcome back to Sahayak. I can help with general therapy information and an interactive Dosha quiz.\n\n**How can I assist you today?**\n• Start interactive Dosha quiz\n• Ask about therapies & FAQs\n• Hinglish commands (e.g. "Mujhe Basti therapy batao")`;
     } else {
       welcomeText = "🙏 **Namaste and welcome to Sahayak!** \n\nI'm your personal Ayurvedic wellness assistant. To begin our personalized consultation, may I know your good name?";
     }
@@ -126,7 +122,6 @@ const AyurVaidya = () => {
         body: JSON.stringify({
           query: userText,
           session_id: sessionId,
-          patient_id: patientId,
         }),
       });
 
@@ -179,7 +174,6 @@ const AyurVaidya = () => {
   // Popular queries
   const quickActions = [
     { text: "I want to take the Dosha Quiz", icon: "📝" },
-    { text: "When is my next appointment?", icon: "📅" },
     { text: "Tell me about Panchakarma benefits", icon: "🧘‍♀️" },
     { text: "How does the smart queue work?", icon: "⚡" },
     { text: "Pitta imbalance remedies?", icon: "🔥" }

@@ -1,3 +1,4 @@
+const bcrypt = require("bcryptjs");
 const db = require("../config/db");
 
 const Therapist = {
@@ -16,7 +17,7 @@ const Therapist = {
       `INSERT INTO therapists 
        (name, email, password, phone, expertise, experience_years, qualification, assigned_doctor_id, role, created_at, updated_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'therapist',NOW(),NOW())
-       RETURNING *`,
+       RETURNING therapist_id AS id, name, email, role`,
 
       [
         name,
@@ -63,13 +64,14 @@ const Therapist = {
 
   // Update therapist
   async update(id, fields) {
-    const keys = Object.keys(fields);
-    const values = Object.values(fields);
+    const keys = Object.keys(fields).filter((key) => ["name", "email", "password", "phone", "expertise", "experience_years", "qualification", "assigned_doctor_id"].includes(key));
+    if (!keys.length) return this.findById(id);
+    const values = await Promise.all(keys.map((key) => key === "password" ? bcrypt.hash(fields[key], 10) : fields[key]));
     const setClause = keys.map((key, i) => `${key}=$${i + 1}`).join(", ");
     const result = await db.query(
       `UPDATE therapists SET ${setClause}, updated_at=NOW() WHERE therapist_id=$${
         keys.length + 1
-      } RETURNING *`,
+      } RETURNING therapist_id AS id, name, email, role`,
       [...values, id]
     );
     return result.rows[0];
@@ -78,7 +80,7 @@ const Therapist = {
   // Delete therapist
   async remove(id) {
     const result = await db.query(
-      `DELETE FROM therapists WHERE therapist_id=$1 RETURNING *`,
+      `DELETE FROM therapists WHERE therapist_id=$1 RETURNING therapist_id AS id, name, email, role`,
       [id]
     );
     return result.rows[0];

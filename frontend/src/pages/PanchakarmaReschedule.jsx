@@ -1,3 +1,4 @@
+import { authHeaders, availableTimes } from "../api/auth";
 import React, { useState, useEffect } from "react";
 import {
   CalendarIcon,
@@ -20,12 +21,7 @@ const PanchakarmaReschedule = () => {
   const [loading, setLoading] = useState(false);
 
   // Search states
-  const [searchData, setSearchData] = useState({
-    bookingId: "",
-    patientId: "",
-    mobileNumber: "",
-    aadharNumber: "",
-  });
+  const [bookingId, setBookingId] = useState("");
 
   // Current appointment data
   const [appointmentData, setAppointmentData] = useState(null);
@@ -47,37 +43,6 @@ const PanchakarmaReschedule = () => {
   // Available data for rescheduling
   const [availableDates, setAvailableDates] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
-
-  // Mock data for demonstration
-  const mockAppointment = {
-    bookingId: "PCK-1726308000000",
-    patientId: "AYR-2024-001",
-    aadharNumber: "1234-5678-9012",
-    mobileNumber: "+91 9876543210",
-    currentDate: "2025-09-20",
-    currentTime: "10:30",
-    doshaType: "vata",
-    doctor: {
-      id: "DOC-001",
-      name: "Dr. Ananya Sharma",
-      specialization: "Panchakarma Specialist",
-      avatar: "https://randomuser.me/api/portraits/women/45.jpg",
-    },
-    center: {
-      name: "AyurSutra Wellness Center - Mumbai",
-      address: "Bandra West, Mumbai, Maharashtra",
-    },
-    treatment: {
-      name: "Basti (Medicated Enema)",
-      duration: "90 minutes",
-    },
-    status: "confirmed",
-    bookingDate: "2025-09-15",
-    canReschedule: true,
-    canCancel: true,
-    rescheduleDeadline: "2025-09-18", // 2 days before appointment
-    cancellationDeadline: "2025-09-19", // 1 day before appointment
-  };
 
   const cancelReasons = [
     "Personal emergency",
@@ -110,8 +75,8 @@ const PanchakarmaReschedule = () => {
         `${API_BASE_URL}/api/bookings/search`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(searchData),
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ booking_id: bookingId }),
         }
       );
 
@@ -157,32 +122,15 @@ const PanchakarmaReschedule = () => {
   // Fetch available time slots
   const fetchTimeSlots = async (date) => {
     setLoading(true);
-    setTimeout(() => {
-      const slots = [];
-      const baseSlots = ["09:00", "10:30", "12:00", "14:00", "15:30", "17:00"];
-
-      // Mock dosha-based filtering
-      const doshaOptimalTimes = {
-        vata: ["10:30", "12:00", "14:00"],
-        pitta: ["09:00", "17:00"],
-        kapha: ["09:00", "10:30", "15:30"],
-      };
-
-      const optimalSlots =
-        doshaOptimalTimes[appointmentData.doshaType] || baseSlots;
-
-      optimalSlots.forEach((time) => {
-        slots.push({
-          time,
-          available: Math.random() > 0.3,
-          optimal: doshaOptimalTimes[appointmentData.doshaType]?.includes(time),
-          therapyDuration: "90 minutes",
-        });
-      });
-
-      setAvailableSlots(slots);
+    setAvailableSlots([]);
+    try {
+      const slots = await availableTimes(API_BASE_URL, appointmentData.doctor.id, date);
+      setAvailableSlots(slots.map((time) => ({ time, available: true, therapyDuration: "90 minutes" })));
+    } catch (error) {
+      alert(error.message);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   // Handle reschedule submission
@@ -193,7 +141,7 @@ const PanchakarmaReschedule = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/bookings/${appointmentData.bookingId}/reschedule`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({
           new_date: rescheduleData.newDate,
           new_time: rescheduleData.newTimeSlot?.time,
@@ -201,14 +149,12 @@ const PanchakarmaReschedule = () => {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to reschedule booking");
-      }
+      if (!response.ok) throw new Error((await response.json()).message || "Unable to reschedule booking");
 
       setStep(5);
     } catch (error) {
       console.error("Reschedule error:", error);
-      alert("Failed to reschedule appointment. Please try again.");
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -222,20 +168,18 @@ const PanchakarmaReschedule = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/bookings/${appointmentData.bookingId}/cancel`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({
           reason: cancelData.reason,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to cancel booking");
-      }
+      if (!response.ok) throw new Error((await response.json()).message || "Unable to cancel booking");
 
       setStep(5);
     } catch (error) {
       console.error("Cancellation error:", error);
-      alert("Failed to cancel appointment. Please try again.");
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -245,13 +189,7 @@ const PanchakarmaReschedule = () => {
   const canPerformAction = (actionType, appointment) => {
     if (!appointment) return false;
 
-    const today = new Date().toISOString().split("T")[0];
-    const deadline =
-      actionType === "reschedule"
-        ? appointment.rescheduleDeadline
-        : appointment.cancellationDeadline;
-
-    return today <= deadline;
+    return actionType === "reschedule" ? appointment.canReschedule : appointment.canCancel;
   };
 
   const getDaysUntilAppointment = (appointmentDate) => {
@@ -323,8 +261,7 @@ const PanchakarmaReschedule = () => {
                   Find Your Appointment
                 </h2>
                 <p className="text-gray-600 mb-8">
-                  Enter any one of the following details to locate your
-                  appointment
+                  Sign in and enter the booking ID from your receipt.
                 </p>
 
                 <form onSubmit={handleSearch} className="space-y-6">
@@ -335,81 +272,18 @@ const PanchakarmaReschedule = () => {
                       </label>
                       <input
                         type="text"
-                        value={searchData.bookingId}
-                        onChange={(e) =>
-                          setSearchData((prev) => ({
-                            ...prev,
-                            bookingId: e.target.value,
-                          }))
-                        }
-                        placeholder="PCK-1726308000000"
+                        value={bookingId}
+                        onChange={(event) => setBookingId(event.target.value)}
+                        placeholder="12345"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Patient ID
-                      </label>
-                      <input
-                        type="text"
-                        value={searchData.patientId}
-                        onChange={(e) =>
-                          setSearchData((prev) => ({
-                            ...prev,
-                            patientId: e.target.value,
-                          }))
-                        }
-                        placeholder="AYR-2024-001"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Mobile Number
-                      </label>
-                      <input
-                        type="tel"
-                        value={searchData.mobileNumber}
-                        onChange={(e) =>
-                          setSearchData((prev) => ({
-                            ...prev,
-                            mobileNumber: e.target.value,
-                          }))
-                        }
-                        placeholder="+91 9876543210"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Aadhar Number
-                      </label>
-                      <input
-                        type="text"
-                        value={searchData.aadharNumber}
-                        onChange={(e) =>
-                          setSearchData((prev) => ({
-                            ...prev,
-                            aadharNumber: e.target.value,
-                          }))
-                        }
-                        placeholder="1234-5678-9012"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
-                      />
-                    </div>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={
-                      !searchData.bookingId &&
-                      !searchData.patientId &&
-                      !searchData.mobileNumber &&
-                      !searchData.aadharNumber
-                    }
+                    disabled={!bookingId.trim() || loading}
                     className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {loading ? (
@@ -450,10 +324,7 @@ const PanchakarmaReschedule = () => {
                   )}
                   <span className="font-semibold">
                     Status:{" "}
-                    {appointment?.therapy_type
-                      ? appointment.therapy_type.charAt(0).toUpperCase() +
-                        appointment.therapy_type.slice(1)
-                      : "N/A"}
+                    {appointmentData.status}
                   </span>
                   <span className="ml-4 text-sm">
                     {getDaysUntilAppointment(appointmentData.currentDate)} days
@@ -564,7 +435,7 @@ const PanchakarmaReschedule = () => {
                     <h3 className="text-lg font-semibold mb-4">
                       Treatment Center
                     </h3>
-                    <p className="font-semibold">{appointmentData.center.id}</p>
+                    <p className="font-semibold">{appointmentData.center.name}</p>
                     <p className="text-sm text-gray-600">
                       {appointmentData.center.address}
                     </p>
@@ -820,7 +691,8 @@ const PanchakarmaReschedule = () => {
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                          {availableSlots.map((slot) => (
+                          {!loading && availableSlots.length === 0 && <p>No open times for this date.</p>}
+                        {availableSlots.map((slot) => (
                             <div
                               key={slot.time}
                               onClick={() =>
@@ -1192,12 +1064,7 @@ const PanchakarmaReschedule = () => {
                         setStep(1);
                         setAction("");
                         setAppointmentData(null);
-                        setSearchData({
-                          bookingId: "",
-                          patientId: "",
-                          mobileNumber: "",
-                          aadharNumber: "",
-                        });
+                        setBookingId("");
                         setRescheduleData({
                           newDate: "",
                           newTimeSlot: null,

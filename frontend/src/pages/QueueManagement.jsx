@@ -1,3 +1,4 @@
+import { authHeaders } from "../api/auth";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,7 +12,7 @@ import {
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 
-const FIREBASE_DB_URL = "https://digital-queue-system-ca4a3-default-rtdb.firebaseio.com";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 const QueueManagement = () => {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ const QueueManagement = () => {
 
     const fetchQueue = async () => {
       try {
-        const response = await fetch(`${FIREBASE_DB_URL}/queues/${selectedDate}.json`);
+        const response = await fetch(`${API_BASE_URL}/api/queue?date=${encodeURIComponent(selectedDate)}`, { headers: authHeaders() });
         if (!response.ok) throw new Error("Failed to fetch database queues");
         
         const data = await response.json();
@@ -69,20 +70,7 @@ const QueueManagement = () => {
           return;
         }
 
-        // Convert key-value object to array
-        const list = Object.keys(data).map((key) => ({
-          id: key,
-          ...data[key],
-        }));
-
-        // Sort: Emergency priority first, then by timestamp (oldest first)
-        list.sort((a, b) => {
-          if (a.priority === "emergency" && b.priority !== "emergency") return -1;
-          if (b.priority === "emergency" && a.priority !== "emergency") return 1;
-          return (a.timestamp || 0) - (b.timestamp || 0);
-        });
-
-        setQueueList(list);
+        setQueueList(data);
         setLoading(false);
       } catch (err) {
         console.error("Error fetching queues:", err);
@@ -114,17 +102,12 @@ const QueueManagement = () => {
     }
 
     try {
-      const updates = {
-        priority: "emergency",
-        timestamp: Date.now() - 10000000, // force timestamp backward to position them at the very front
-      };
-
       const response = await fetch(
-        `${FIREBASE_DB_URL}/queues/${selectedDate}/${patientId}.json`,
+        `${API_BASE_URL}/api/queue/${patientId}`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updates),
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "prioritize" }),
         }
       );
 
@@ -150,9 +133,11 @@ const QueueManagement = () => {
 
     try {
       const response = await fetch(
-        `${FIREBASE_DB_URL}/queues/${selectedDate}/${patientId}.json`,
+        `${API_BASE_URL}/api/queue/${patientId}`,
         {
-          method: "DELETE",
+          method: "PATCH",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "remove" }),
         }
       );
 
@@ -193,13 +178,15 @@ const QueueManagement = () => {
 
       // Delete next patient from queue
       const response = await fetch(
-        `${FIREBASE_DB_URL}/queues/${selectedDate}/${nextPatient.id}.json`,
+        `${API_BASE_URL}/api/queue/${nextPatient.id}`,
         {
-          method: "DELETE",
+          method: "PATCH",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "call" }),
         }
       );
 
-      if (!response.ok) throw new Error("Failed to delete called patient");
+      if (!response.ok) throw new Error("Unable to call patient");
 
       setRefreshKey((prev) => prev + 1);
     } catch (err) {
@@ -340,7 +327,7 @@ const QueueManagement = () => {
                   {queueList.map((patient, index) => {
                     const isEmergency = patient.priority === "emergency";
                     const joinedTime = patient.timestamp
-                      ? new Date(patient.timestamp).toLocaleTimeString([], {
+                      ? new Date(Number(patient.timestamp)).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
                         })

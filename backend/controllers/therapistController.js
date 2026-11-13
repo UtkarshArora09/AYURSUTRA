@@ -26,6 +26,7 @@ exports.getTherapistById = async (req, res) => {
 
 // Update therapist
 exports.updateTherapist = async (req, res) => {
+  if (req.params.id !== String(req.user.id)) return res.status(404).json({ message: "Account not found" });
   try {
     const updatedTherapist = await Therapist.update(req.params.id, req.body);
     if (!updatedTherapist)
@@ -39,6 +40,7 @@ exports.updateTherapist = async (req, res) => {
 
 // Delete therapist
 exports.deleteTherapist = async (req, res) => {
+  if (req.params.id !== String(req.user.id)) return res.status(404).json({ message: "Account not found" });
   try {
     const deletedTherapist = await Therapist.remove(req.params.id);
     if (!deletedTherapist)

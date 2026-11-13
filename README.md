@@ -288,7 +288,7 @@ npm run dev
 
 ```bash
 # Build and run all services
-docker-compose up --build
+# See backend/README.md for local setup and database migrations.
 ```
 
 The app will be available at `http://localhost:3000`

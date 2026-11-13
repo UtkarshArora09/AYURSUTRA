@@ -2,7 +2,9 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const path = require('path');
+const pool = require("./config/db");
+const migrate = require("./config/init-db");
+const { getJwtSecret } = require("./config/auth");
 
 const adminRoutes = require("./routes/adminRoutes");
 const patientRoutes = require("./routes/patientRoutes");
@@ -21,7 +23,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(morgan("dev"));
+app.use(morgan(":method :status :response-time ms"));
 
 // API routes
 app.use("/api/admin", adminRoutes);
@@ -33,6 +35,7 @@ app.use("/api/records", recordRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/therapy", therapyRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/queue", require("./routes/queueRoutes"));
 app.use('/sitemap.xml', sitemapRoutes);
 
 // Root health check
@@ -40,12 +43,30 @@ app.get("/", (req, res) => {
   res.send(`🌿 AyurSutra API is running in ${process.env.NODE_ENV} mode`);
 });
 
+app.get("/health/ready", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.json({ status: "ready" });
+  } catch {
+    res.status(503).json({ status: "unavailable" });
+  }
+});
+
 app.use(errorHandler);
 
-// Initialize DB Tables
-require("./config/init-db")();
-
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
-});
+async function start() {
+  getJwtSecret();
+  await migrate();
+  return app.listen(PORT, process.env.HOST, () => console.log("AyurSutra API listening"));
+}
+
+if (require.main === module) {
+  start().catch(async (error) => {
+    console.error("API startup failed:", error.code || error.message);
+    await pool.end();
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { app, start };

@@ -25,7 +25,7 @@ const Appointment = {
   },
 
   async findById(id) {
-    const result = await db.query("SELECT * FROM appointments WHERE id=$1", [
+    const result = await db.query("SELECT * FROM appointments WHERE appointment_id=$1", [
       id,
     ]);
     return result.rows[0];
@@ -37,7 +37,7 @@ const Appointment = {
 
     const setClause = keys.map((key, i) => `${key}=$${i + 1}`).join(", ");
     const result = await db.query(
-      `UPDATE appointments SET ${setClause}, updated_at=NOW() WHERE id=$${
+      `UPDATE appointments SET ${setClause}, updated_at=NOW() WHERE appointment_id=$${
         keys.length + 1
       } RETURNING *`,
       [...values, id]
@@ -47,7 +47,7 @@ const Appointment = {
 
   async remove(id) {
     const result = await db.query(
-      "DELETE FROM appointments WHERE id=$1 RETURNING *",
+      "DELETE FROM appointments WHERE appointment_id=$1 RETURNING *",
       [id]
     );
     return result.rows[0];

@@ -1,3 +1,4 @@
+import { authHeaders, availableTimes } from "../api/auth";
 import React, { useState, useEffect } from "react";
 import {
   CalendarIcon,
@@ -20,7 +21,6 @@ const PanchakarmaBooking = () => {
     id: null,
     patientId: "",
     name: "",
-    aadharNumber: "",
   });
   // Form states
   const [formData, setFormData] = useState({
@@ -149,14 +149,13 @@ const PanchakarmaBooking = () => {
         if (user.role === "patient") {
           const patientId = user.patient_id || user.id;
           if (patientId) {
-            const response = await fetch(`${API_BASE_URL}/api/patients/${patientId}`);
+            const response = await fetch(`${API_BASE_URL}/api/patients/${patientId}`, { headers: authHeaders() });
             if (response.ok) {
               const data = await response.json();
               setPatientData({
                 id: data.patient_id,
                 patientId: `AYR-2026-${String(data.patient_id).padStart(3, "0")}`,
                 name: `${data.first_name} ${data.last_name}`.trim(),
-                aadharNumber: data.aadhar_number || "",
               });
               setFormData((prev) => ({
                 ...prev,
@@ -191,44 +190,31 @@ const PanchakarmaBooking = () => {
     }, 1000);
   };
 
-  const fetchTimeSlots = async (date, doctorId, centerId, doshaType) => {
+  const fetchTimeSlots = async (date, doctorId, doshaType) => {
     setLoading(true);
-    // TODO: Replace with actual dosha-based scheduling API
-    setTimeout(() => {
-      const slots = [];
-      const baseSlots = ["09:00", "10:30", "12:00", "14:00", "15:30", "17:00"];
-
-      // Mock dosha-based filtering
-      const doshaOptimalTimes = {
+    setAvailableSlots([]);
+    try {
+      const slots = await availableTimes(API_BASE_URL, doctorId, date);
+      const optimalTimes = {
         vata: ["10:30", "12:00", "14:00"],
         pitta: ["09:00", "17:00"],
         kapha: ["09:00", "10:30", "15:30"],
-        mixed: baseSlots,
       };
-
-      const optimalSlots = doshaOptimalTimes[doshaType] || baseSlots;
-
-      optimalSlots.forEach((time) => {
-        slots.push({
-          time,
-          available: Math.random() > 0.3, // 70% availability
-          optimal: doshaOptimalTimes[doshaType]?.includes(time),
-          therapyDuration: "90 minutes",
-        });
-      });
-
-      setAvailableSlots(slots);
-
-      // Generate treatment recommendation
+      setAvailableSlots(slots.map((time) => ({
+        time, available: true, optimal: optimalTimes[doshaType]?.includes(time),
+        therapyDuration: "90 minutes",
+      })));
       setRecommendedTreatment({
         therapy: getRecommendedTherapy(doshaType),
         duration: "7-14 days",
         sessions: "3-5 sessions",
         preparationDays: "2-3 days",
       });
-
+    } catch (error) {
+      alert(error.message);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const getRecommendedTherapy = (dosha) => {
@@ -272,7 +258,6 @@ const PanchakarmaBooking = () => {
       fetchTimeSlots(
         value,
         formData.selectedDoctor.id,
-        formData.selectedCenter.id,
         formData.doshaType
       );
     }
@@ -281,7 +266,6 @@ const PanchakarmaBooking = () => {
       fetchTimeSlots(
         formData.selectedDate,
         formData.selectedDoctor.id,
-        formData.selectedCenter.id,
         value
       );
     }
@@ -293,39 +277,30 @@ const PanchakarmaBooking = () => {
 
     try {
       const bookingData = {
-        patient_id: patientData.id, // integer from DB (e.g. 1, 2, 3)
-        patient_code: patientData.patientId, // string code ("AYR-2026-001")
         therapy_type: recommendedTreatment?.therapy?.name || "Vamana",
         scheduled_date: formData.selectedDate,
         scheduled_time: formData.selectedTimeSlot?.time,
         doctor_id: formData.selectedDoctor?.id, // integer
-        doctor_code: formData.selectedDoctor?.code, // e.g. "Ayur_doc2"
         center_id: formData.selectedCenter?.id, // integer center ID!
         mobile_number: formData.mobileNumber, // patient mobile number!
         symptoms: formData.symptoms || "",
         preferences: formData.preferences || "",
-        status: "Pending",
         dosha_type: formData.doshaType || "Vata",
       };
 
-      console.log("Submitting booking:", bookingData);
 
       const response = await fetch(`${API_BASE_URL}/api/bookings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify(bookingData),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to create booking. Status: ${response.status}`);
-      }
-
       const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Unable to book this slot");
       const completeBooking = {
         ...data.data,
         patientName: patientData.name,
         patientCode: patientData.patientId,
-        aadharNumber: patientData.aadharNumber,
         selectedDoctor: formData.selectedDoctor,
         selectedCenter: formData.selectedCenter,
         selectedTimeSlot: formData.selectedTimeSlot,
@@ -336,7 +311,7 @@ const PanchakarmaBooking = () => {
       setStep(4);
     } catch (error) {
       console.error("Booking error:", error);
-      alert("Something went wrong while booking. Please try again.");
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -448,22 +423,6 @@ const PanchakarmaBooking = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Aadhar Number
-                    </label>
-                    <input
-                      type="text"
-                      value={patientData.aadharNumber}
-                      onChange={(e) =>
-                        setPatientData({
-                          ...patientData,
-                          aadharNumber: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-                    />
-                  </div>
                 </div>
 
                 {/* Editable mobile number */}
@@ -747,6 +706,7 @@ const PanchakarmaBooking = () => {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {!loading && availableSlots.length === 0 && <p>No open times for this date.</p>}
                         {availableSlots.map((slot) => (
                           <div
                             key={slot.time}

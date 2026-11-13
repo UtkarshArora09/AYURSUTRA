@@ -9,14 +9,14 @@ const protect = async (req, res, next) => {
   // Check Authorization header
   if (
     req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
+    req.headers.authorization.startsWith("Bearer ")
   ) {
     try {
       // Extract token
       token = req.headers.authorization.split(" ")[1];
 
       // Verify JWT
-      const decoded = jwt.verify(token, getJwtSecret());
+      const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
 
       let user;
 
@@ -67,7 +67,7 @@ const protect = async (req, res, next) => {
       }
 
       // If no user found
-      if (!user) {
+      if (!user || user.role !== decoded.role) {
         return res.status(401).json({ message: "User not found" });
       }
 
@@ -75,10 +75,10 @@ const protect = async (req, res, next) => {
       req.user = user;
 
       next(); // continue to the next middleware/controller
-    } catch (err) {
+    } catch {
       return res
         .status(401)
-        .json({ message: "Not authorized, token failed", error: err.message });
+        .json({ message: "Not authorized, token failed" });
     }
   } else {
     return res.status(401).json({ message: "Not authorized, no token" });

@@ -67,8 +67,6 @@ exports.loginTherapist = async (req, res) => {
       getJwtSecret(),
       { expiresIn: "1d" }
     );
-
-    console.log("Therapist login successful, JWT:", token);
     res.json({ token, therapist });
   } catch (err) {
     console.error("Therapist login error:", err);

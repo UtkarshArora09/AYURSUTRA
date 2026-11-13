@@ -1,22 +1,13 @@
 const pool = require("../config/db");
+const appointmentColumn = { patient: "patient_id", doctor: "doctor_id", therapist: "therapist_id" };
 
 // GET ALL APPOINTMENTS
 exports.getAppointments = async (req, res) => {
   try {
-    let query = "SELECT * FROM appointments";
-
-    // Patients should only see their own appointments
-    if (req.user.role === "patient") {
-      query += " WHERE patient_id = $1";
-      const { rows } = await pool.query(query, [req.user.id]);
-      return res.json(rows);
-    }
-
-    // Doctors & Therapists can see all appointments
-    const { rows } = await pool.query(query);
+    const { rows } = await pool.query(`SELECT * FROM appointments WHERE ${appointmentColumn[req.user.role]} = $1`, [req.user.id]);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Appointment request failed" });
   }
 };
 
@@ -25,8 +16,8 @@ exports.getAppointmentById = async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(
-      "SELECT * FROM appointments WHERE appointment_id = $1",
-      [id]
+      `SELECT * FROM appointments WHERE appointment_id = $1 AND ${appointmentColumn[req.user.role]} = $2`,
+      [id, req.user.id]
     );
     const appointment = rows[0];
 
@@ -40,7 +31,7 @@ exports.getAppointmentById = async (req, res) => {
 
     res.json(appointment);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Appointment request failed" });
   }
 };
 
@@ -85,7 +76,7 @@ exports.createAppointment = async (req, res) => {
       .status(201)
       .json({ message: "Appointment created", appointment: rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Appointment request failed" });
   }
 };
 
@@ -96,8 +87,8 @@ exports.updateAppointment = async (req, res) => {
     const { appointment_date, status, notes } = req.body;
 
     const { rows } = await pool.query(
-      "SELECT * FROM appointments WHERE appointment_id = $1",
-      [id]
+      `SELECT * FROM appointments WHERE appointment_id = $1 AND ${appointmentColumn[req.user.role]} = $2`,
+      [id, req.user.id]
     );
     const appointment = rows[0];
 
@@ -117,13 +108,13 @@ exports.updateAppointment = async (req, res) => {
          status = $2,
          notes = $3,
          updated_at = NOW()
-       WHERE appointment_id = $4
+       WHERE appointment_id = $4 AND ${appointmentColumn[req.user.role]} = $5
        RETURNING *`,
       [
         appointment_date || appointment.appointment_date,
         status || appointment.status,
         notes ?? appointment.notes,
-        id,
+        id, req.user.id,
       ]
     );
 
@@ -132,8 +123,7 @@ exports.updateAppointment = async (req, res) => {
       appointment: updated.rows[0],
     });
   } catch (err) {
-    console.error("Update appointment error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Appointment request failed" });
   }
 };
 
@@ -143,8 +133,8 @@ exports.deleteAppointment = async (req, res) => {
     const { id } = req.params;
 
     const { rows } = await pool.query(
-      "SELECT * FROM appointments WHERE appointment_id = $1",
-      [id]
+      `SELECT * FROM appointments WHERE appointment_id = $1 AND ${appointmentColumn[req.user.role]} = $2`,
+      [id, req.user.id]
     );
     const appointment = rows[0];
 
@@ -156,11 +146,11 @@ exports.deleteAppointment = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    await pool.query("DELETE FROM appointments WHERE appointment_id = $1", [
-      id,
+    await pool.query(`DELETE FROM appointments WHERE appointment_id = $1 AND ${appointmentColumn[req.user.role]} = $2`, [
+      id, req.user.id,
     ]);
     res.json({ message: "Appointment deleted" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Appointment request failed" });
   }
 };

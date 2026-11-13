@@ -12,8 +12,8 @@ router.post("/auth/register", registerPatient);
 router.post("/auth/login", loginPatient);
 
 // Patient protected routes
-router.get("/", patientController.getPatients);
-router.get("/:id", patientController.getPatientById);
+router.get("/", protect, authorize("admin"), patientController.getPatients);
+router.get("/:id", protect, authorize("patient"), patientController.getPatientById);
 router.put(
   "/:id",
   protect,

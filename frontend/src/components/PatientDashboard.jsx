@@ -1,3 +1,4 @@
+import { authHeaders } from "../api/auth";
 import React, { useEffect, useState } from "react";
 import {
   UserIcon,
@@ -30,7 +31,7 @@ const PatientDashboard = () => {
         
         if (!patientId) throw new Error("No authenticated patient ID found");
 
-        const response = await fetch(`${API_BASE_URL}/api/patients/${patientId}`);
+        const response = await fetch(`${API_BASE_URL}/api/patients/${patientId}`, { headers: authHeaders() });
         if (!response.ok) {
           throw new Error("Failed to fetch patient data");
         }

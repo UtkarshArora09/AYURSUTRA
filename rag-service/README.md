@@ -85,3 +85,6 @@ Start the Vite dev server inside the `frontend` directory:
 cmd.exe /c npm run dev
 ```
 Open your browser at `http://localhost:5173`. Sahayak will now call the FastAPI backend to answer questions, assess doshas, query active DB profiles, and show warnings.
+
+
+Maintenance requests require a bearer token matching RAG_MAINTENANCE_TOKEN. Reingestion uses POST. The chatbot handles general questions and quizzes, and the authenticated portal handles patient records.

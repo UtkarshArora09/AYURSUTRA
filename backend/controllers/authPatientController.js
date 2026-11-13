@@ -8,7 +8,6 @@ const { getJwtSecret } = require("../config/auth");
 // Register Patient
 exports.registerPatient = async (req, res) => {
   try {
-    console.log("Request body:", req.body);
 
     const {
       firstName,
@@ -75,13 +74,9 @@ exports.registerPatient = async (req, res) => {
       role: "patient", // explicitly pass role
     });
 
-    // Remove password before sending response
-    if (newPatient.password) delete newPatient.password;
-
-    res.status(201).json(newPatient);
+    res.status(201).json({ patient_id: newPatient.patient_id, first_name: newPatient.first_name });
   } catch (err) {
-    console.error("Registration error:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Authentication request failed" });
   }
 };
 
@@ -93,8 +88,6 @@ exports.loginPatient = async (req, res) => {
     const email = req.body.email?.trim().toLowerCase();
     const password = req.body.password?.trim();
 
-    console.log("Login attempt:", email);
-
     if (!email || !password) {
       return res
         .status(400)
@@ -102,13 +95,11 @@ exports.loginPatient = async (req, res) => {
     }
 
     const patient = await Patient.findByEmail(email);
-    console.log("Patient found:", patient);
 
     if (!patient)
       return res.status(400).json({ message: "Invalid credentials" });
 
     const isMatch = await bcrypt.compare(password, patient.password);
-    console.log("Password match:", isMatch);
 
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
@@ -119,10 +110,11 @@ exports.loginPatient = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    const { password: pwd, ...patientData } = patient;
+    const { patient_id, first_name, last_name, email: patientEmail, role } = patient;
+    const patientData = { patient_id, first_name, last_name, email: patientEmail, role };
     res.json({ token, patient: patientData });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Authentication request failed" });
   }
 };
 
@@ -136,7 +128,7 @@ exports.forgotPassword = async (req, res) => {
 
     const patient = await Patient.findByEmail(email);
     if (!patient) {
-      return res.status(404).json({ message: "Patient not found" });
+      return res.json({ message: "If the account exists, a reset link will be sent" });
     }
 
     // Generate a reset token
@@ -144,7 +136,7 @@ exports.forgotPassword = async (req, res) => {
     const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
 
     // Save token & expiry to patient record
-    await Patient.setResetToken(email, resetToken, resetTokenExpiry);
+    await Patient.setResetToken(email, crypto.createHash("sha256").update(resetToken).digest("hex"), resetTokenExpiry);
 
     // Send email (using nodemailer)
     const transporter = nodemailer.createTransport({
@@ -162,17 +154,14 @@ exports.forgotPassword = async (req, res) => {
       from: process.env.EMAIL_USER,
       to: email,
       subject: "AyurSutra Password Reset",
-      html: `<p>Hello ${patient.firstName},</p>
-             <p>Click the link below to reset your password. This link is valid for 1 hour.</p>
-             <a href="${resetUrl}">${resetUrl}</a>`,
+      text: `Use this link within one hour to reset your password: ${resetUrl}`,
     };
 
     await transporter.sendMail(mailOptions);
 
-    res.json({ message: "Password reset link sent to your email" });
+    res.json({ message: "If the account exists, a reset link will be sent" });
   } catch (err) {
-    console.error("Forgot password error:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Authentication request failed" });
   }
 };
 
@@ -187,13 +176,12 @@ exports.verifyResetToken = async (req, res) => {
     // Check if patient exists with reset token
     const patient = await Patient.findByEmail(email);
 
-    if (!patient || patient.reset_token !== token || new Date(patient.reset_token_expiry) < new Date()) {
+    if (!patient || patient.reset_token !== crypto.createHash("sha256").update(String(token)).digest("hex") || new Date(patient.reset_token_expiry) < new Date()) {
       return res.status(400).json({ valid: false, message: "Invalid or expired reset link" });
     }
 
     return res.json({ valid: true, message: "Valid reset link" });
   } catch (err) {
-    console.error("Verify token error:", err.message);
     return res.status(500).json({ valid: false, message: "Server error" });
   }
 };
@@ -209,7 +197,8 @@ exports.resetPassword = async (req, res) => {
         .json({ message: "Token and new password are required" });
     }
 
-    const patient = await Patient.findByResetToken(token);
+    const tokenHash = crypto.createHash("sha256").update(String(token)).digest("hex");
+    const patient = await Patient.findByResetToken(tokenHash);
 
     if (!patient) {
       return res.status(400).json({ message: "Invalid or expired token" });
@@ -223,11 +212,11 @@ exports.resetPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update patient password & remove token
-    await Patient.updatePassword(patient.patient_id, hashedPassword);
+    const updated = await Patient.updatePassword(patient.patient_id, hashedPassword, tokenHash);
+    if (!updated) return res.status(400).json({ message: "Invalid or expired token" });
 
     res.json({ message: "Password updated successfully" });
   } catch (err) {
-    console.error("Reset password error:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Authentication request failed" });
   }
 };

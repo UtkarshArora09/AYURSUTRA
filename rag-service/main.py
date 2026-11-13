@@ -17,9 +17,11 @@ Run:
 
 import os
 import glob
+import secrets
+from uuid import UUID
 import psycopg
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -56,8 +58,7 @@ if GROQ_API_KEY:
 
 class ChatRequest(BaseModel):
     query: str
-    session_id: str = "default_session"
-    patient_id: str | int | None = None
+    session_id: UUID
 
 
 class ChatResponse(BaseModel):
@@ -295,77 +296,6 @@ def save_chat_history(conn, session_id: str, role: str, content: str):
     cur.close()
 
 
-def query_hybrid_db(conn, query: str, patient_id: int) -> str:
-    """Fetch personal patient data (appointments, profile) from Postgres and format it for the prompt."""
-    if not patient_id:
-        return ""
-
-    q_lower = query.lower()
-    additional_context = []
-    cur = conn.cursor()
-
-    try:
-        # 1. Fetch patient profile
-        cur.execute(
-            "SELECT first_name, last_name, email, age, gender, dosha, blood_group FROM patients WHERE patient_id = %s",
-            (patient_id,)
-        )
-        patient = cur.fetchone()
-        if patient:
-            additional_context.append(
-                f"Patient Profile: Name={patient[0]} {patient[1]}, Email={patient[2]}, Age={patient[3]}, Gender={patient[4]}, Current Assessed Dosha={patient[5] or 'Not Assessed Yet'}, Blood Group={patient[6] or 'Unknown'}."
-            )
-
-        # 2. Fetch appointments if queried
-        if any(w in q_lower for w in ["appointment", "booking", "visit", "doctor", "schedule"]):
-            cur.execute(
-                """
-                SELECT a.appointment_date, a.status, a.notes, d.name, d.specialization 
-                FROM appointments a
-                LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
-                WHERE a.patient_id = %s
-                ORDER BY a.appointment_date DESC
-                LIMIT 3
-                """,
-                (patient_id,)
-            )
-            appts = cur.fetchall()
-            if appts:
-                appts_str = "; ".join(
-                    [f"Date={r[0]} Status={r[1]} Notes={r[2]} Doctor={r[3]} Specialization={r[4]}" for r in appts]
-                )
-                additional_context.append(f"Recent/Upcoming Appointments: {appts_str}")
-            else:
-                additional_context.append("No active appointments found in DB.")
-
-            # Fetch therapy bookings
-            cur.execute(
-                """
-                SELECT therapy_type, scheduled_date, scheduled_time, status, dosha_type
-                FROM therapy_bookings
-                WHERE patient_id = %s
-                ORDER BY scheduled_date DESC
-                LIMIT 3
-                """,
-                (patient_id,)
-            )
-            bookings = cur.fetchall()
-            if bookings:
-                bookings_str = "; ".join(
-                    [f"Therapy={r[0]} Date={r[1]} Time={r[2]} Status={r[3]} TargetDosha={r[4]}" for r in bookings]
-                )
-                additional_context.append(f"Panchakarma Therapy Bookings: {bookings_str}")
-            else:
-                additional_context.append("No Panchakarma therapy bookings found in DB.")
-
-    except Exception as e:
-        print(f"Error querying hybrid DB data: {e}")
-    finally:
-        cur.close()
-
-    return "\n".join(additional_context)
-
-
 def retrieve_vector_chunks(conn, query: str, k: int = TOP_K):
     """Query similarity search in pgvector."""
     query_embedding = get_embedding(query)
@@ -412,22 +342,7 @@ def parse_quiz_answer(user_input: str) -> str:
     return "a"  # Fallback option
 
 
-def update_patient_dosha(conn, patient_id: int, dosha: str):
-    """Persist the calculated Dosha type back to the patients table."""
-    if not patient_id:
-        return
-    cur = conn.cursor()
-    try:
-        cur.execute("UPDATE patients SET dosha = %s WHERE patient_id = %s", (dosha, patient_id))
-        conn.commit()
-        print(f"Successfully updated Patient {patient_id} Dosha to {dosha}")
-    except Exception as e:
-        print(f"Error updating patient dosha: {e}")
-    finally:
-        cur.close()
-
-
-def handle_dosha_quiz(conn, user_query: str, history: list[dict], patient_id: int = None) -> ChatResponse:
+def handle_dosha_quiz(conn, user_query: str, history: list[dict]) -> ChatResponse:
     """Runs a stateless-on-server Dosha Quiz using database conversational memory."""
     # Find which questions have already been asked
     asked_questions = []
@@ -474,12 +389,7 @@ def handle_dosha_quiz(conn, user_query: str, history: list[dict], patient_id: in
             
         dominant_dosha = max(tally, key=tally.get).capitalize()
         
-        # Save to PostgreSQL
-        if patient_id:
-            update_patient_dosha(conn, patient_id, dominant_dosha)
-            db_save_msg = "I have updated your patient profile with this assessment!"
-        else:
-            db_save_msg = "Log in to your AyurSutra account to save this assessment to your profile!"
+        db_save_msg = "You can discuss these answers with your clinician."
 
         result_message = (
             f"🎉 **Dosha Assessment Complete!** 🎉\n\n"
@@ -533,12 +443,7 @@ def log_interaction(conn, query: str, chunk_ids: list[int], answer: str, confide
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     query = req.query.strip()
-    session_id = req.session_id.strip()
-    patient_id = req.patient_id
-    if patient_id == "":
-        patient_id = None
-    elif isinstance(patient_id, str) and patient_id.isdigit():
-        patient_id = int(patient_id)
+    session_id = str(req.session_id)
 
     # 1. Smart Medical Guardrails: Check for immediate medical emergencies locally
     emergency_keywords = [
@@ -588,20 +493,19 @@ def chat(req: ChatRequest):
 
         if (is_quiz_triggered or is_already_in_quiz) and not any(w in query.lower() for w in ["stop", "cancel", "exit"]):
             # Handle quiz turn
-            resp = handle_dosha_quiz(conn, query, history, patient_id)
+            resp = handle_dosha_quiz(conn, query, history)
             save_chat_history(conn, session_id, "user", query)
             save_chat_history(conn, session_id, "assistant", resp.answer)
             log_interaction(conn, query, [], resp.answer, 1.0)
             return resp
 
         # 3. Hybrid DB Retrieval & General RAG Query
-        personal_context = query_hybrid_db(conn, query, patient_id)
         vector_chunks = retrieve_vector_chunks(conn, query)
 
         top_confidence = vector_chunks[0]["similarity"] if vector_chunks else 0.0
 
         # If similarity search returns low quality and no personal DB context found, trigger intelligent conversational response
-        if (not vector_chunks or top_confidence < CONFIDENCE_THRESHOLD) and not personal_context:
+        if not vector_chunks or top_confidence < CONFIDENCE_THRESHOLD:
             gen_prompt = f"""You are Sahayak, AyurSutra's AI Ayurvedic assistant. You speak kindly, reassuringly, and ground your answers in Ayurvedic wisdom.
 
 LANGUAGES:
@@ -655,7 +559,6 @@ RULES:
 4. Keep answers clean, concise, and formatted in clear markdown paragraphs.
 
 Personal Context (Active Patient Database Record):
-{personal_context or 'No specific personal records found.'}
 
 Knowledge Context (Ayurvedic Guidelines):
 {knowledge_context}
@@ -709,8 +612,17 @@ def health():
     return {"status": "ok"}
 
 
+def require_maintenance_token(authorization: str | None) -> None:
+    token = os.getenv("RAG_MAINTENANCE_TOKEN")
+    if not token or not secrets.compare_digest(
+        (authorization or "").encode(), f"Bearer {token}".encode()
+    ):
+        raise HTTPException(status_code=401, detail="Maintenance authorization required")
+
+
 @app.get("/debug-ai")
-def debug_ai():
+def debug_ai(authorization: str | None = Header(default=None)):
+    require_maintenance_token(authorization)
     logs = {}
     logs["groq_configured"] = bool(GROQ_API_KEY)
     logs["gemini_configured"] = bool(GEMINI_API_KEY)
@@ -753,9 +665,9 @@ def debug_ai():
     return logs
 
 
-@app.get("/reingest")
 @app.post("/reingest")
-def reingest():
+def reingest(authorization: str | None = Header(default=None)):
+    require_maintenance_token(authorization)
     conn = get_db_connection()
     try:
         count = reingest_knowledge_base(conn)

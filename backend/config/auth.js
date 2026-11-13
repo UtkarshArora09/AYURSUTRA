@@ -3,11 +3,11 @@ const getJwtSecret = () => {
     return process.env.JWT_SECRET;
   }
 
-  if (process.env.NODE_ENV !== "production") {
+  if (["development", "test"].includes(process.env.NODE_ENV)) {
     return "ayursutra-local-dev-secret";
   }
 
-  throw new Error("JWT_SECRET is required in production");
+  throw new Error("JWT_SECRET is required outside development and test");
 };
 
 module.exports = { getJwtSecret };
