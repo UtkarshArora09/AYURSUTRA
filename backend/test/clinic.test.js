@@ -64,9 +64,13 @@ test("fresh database and authorized clinic workflows", async (t) => {
     "INSERT INTO doctors (name, email, password) VALUES ($1, $2, $3) RETURNING doctor_id",
     ["Doctor Test", `doctor-${suffix}@example.invalid`, await bcrypt.hash(password, 10)]
   );
+  await db.query(
+    "INSERT INTO clinic_shifts(doctor_id, center_id, weekday, starts_at, ends_at) SELECT $1, 2, day, '09:00', '18:30' FROM generate_series(0, 6) day",
+    [doctor.doctor_id]
+  );
   const daysAhead = (days) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
   const booking = {
-    doctor_id: doctor.doctor_id, patient_id: other.id, therapy_type: "Basti",
+    doctor_id: doctor.doctor_id, patient_id: other.id, therapy_type: "Basti", center_id: 2,
     scheduled_date: daysAhead(7), scheduled_time: "10:30",
   };
   const created = await call("/api/bookings", {
@@ -75,7 +79,7 @@ test("fresh database and authorized clinic workflows", async (t) => {
   assert.equal(created.data.patient_id, patient.id);
   const id = created.data.booking_id;
   const availability = await call(
-    `/api/bookings/availability?doctorId=${doctor.doctor_id}&date=${booking.scheduled_date}`,
+    `/api/bookings/availability?doctorId=${doctor.doctor_id}&centerId=2&date=${booking.scheduled_date}`,
     { token: patient.token }
   );
   assert.ok(availability.includes("12:00"));
@@ -137,14 +141,14 @@ test("fresh database and authorized clinic workflows", async (t) => {
   await call(`/api/appointments/${appointment.appointment.appointment_id}`, { token: patient.token });
   await call(`/api/appointments/${appointment.appointment.appointment_id}`, { token: other.token, expected: 404 });
 
-  await call("/api/queue?date=" + daysAhead(1), { token: patient.token, expected: 403 });
+  await call("/api/queue?hospital=Test&service=Consultation&date=" + daysAhead(1), { token: patient.token, expected: 403 });
   const ticket = await call("/api/queue", {
     method: "POST", token: patient.token, expected: 201,
     body: { name: "Patient Test", phone: "0000000000", date: daysAhead(1), hospital: "Test", service: "Consultation" },
   });
   assert.equal(await call("/api/queue/mine", { token: other.token }), null);
   assert.equal((await call("/api/queue/mine", { token: patient.token })).position, "1");
-  const queue = await call("/api/queue?date=" + daysAhead(1), { token: doctorLogin.token });
+  const queue = await call("/api/queue?hospital=Test&service=Consultation&date=" + daysAhead(1), { token: doctorLogin.token });
   assert.equal(queue[0].id, ticket.id);
   await call(`/api/queue/${ticket.id}`, {
     method: "PATCH", body: { action: "prioritize" }, token: doctorLogin.token, expected: 204,
@@ -152,4 +156,77 @@ test("fresh database and authorized clinic workflows", async (t) => {
   assert.equal((await call("/api/queue/mine", { token: patient.token })).priority, "emergency");
   await call(`/api/queue/${ticket.id}`, { method: "DELETE", token: other.token, expected: 404 });
   await call(`/api/queue/${ticket.id}`, { method: "DELETE", token: patient.token, expected: 204 });
+
+  await db.query("INSERT INTO admins (name, email, password) VALUES ($1, $2, $3)",
+    ["Admin Test", `admin-${suffix}@example.invalid`, await bcrypt.hash(password, 10)]);
+  const admin = await call("/api/admin/auth/login", {
+    method: "POST", body: { email: `admin-${suffix}@example.invalid`, password },
+  });
+  const scheduleDate = daysAhead(13);
+  const weekday = new Date(scheduleDate).getUTCDay();
+  const manage = (body) => call("/api/clinic/schedule", { token: admin.token, method: "POST", body, expected: 204 });
+  await manage({ type: "shift", doctorId: doctor.doctor_id, centerId: 1, weekday, start: "09:00", end: "12:00" });
+  const slots = () => call(`/api/bookings/availability?doctorId=${doctor.doctor_id}&centerId=1&date=${scheduleDate}&therapy=Basti`, { token: patient.token });
+  await manage({ type: "therapy", name: "Basti", duration: 60 });
+  assert.ok((await slots()).includes("09:15"));
+  await manage({ type: "leave", doctorId: doctor.doctor_id, date: scheduleDate });
+  assert.deepEqual(await slots(), []);
+  await manage({ type: "remove-leave", doctorId: doctor.doctor_id, date: scheduleDate });
+  const scheduled = await call("/api/bookings", {
+    method: "POST", token: patient.token, expected: 201,
+    body: { ...booking, center_id: 1, scheduled_date: scheduleDate, scheduled_time: "09:15" },
+  });
+  assert.equal(scheduled.data.duration_minutes, 60);
+  assert.ok(!(await slots()).includes("09:00"));
+  assert.ok((await slots()).includes("10:15"));
+  const sessionId = scheduled.data.booking_id;
+  await call(`/api/clinic/worklist/${sessionId}`, {
+    method: "PATCH", token: doctorLogin.token, body: { preparation: "Synthetic preparation", sessionNotes: "Internal only" }, expected: 204,
+  });
+  const timeline = await call("/api/clinic/worklist", { token: patient.token });
+  assert.equal(timeline.find((item) => item.booking_id === sessionId).preparation, "Synthetic preparation");
+  assert.equal(timeline.find((item) => item.booking_id === sessionId).session_notes, null);
+  assert.equal((await call(`/api/bookings/${sessionId}`, { token: patient.token })).session_notes, undefined);
+  const pdf = "%PDF-1.4 synthetic report";
+  const upload = await fetch(base + `/api/clinic/reports/${sessionId}?filename=test.pdf`, {
+    method: "POST", headers: { Authorization: `Bearer ${doctorLogin.token}`, "Content-Type": "application/pdf" }, body: pdf,
+  });
+  assert.equal(upload.status, 201);
+  const report = (await call("/api/clinic/worklist", { token: patient.token }))
+    .find((item) => item.booking_id === sessionId).reports[0];
+  const download = await fetch(base + `/api/clinic/reports/${report.id}`, { headers: { Authorization: `Bearer ${patient.token}` } });
+  assert.equal(await download.text(), pdf);
+  await call(`/api/clinic/reports/${report.id}`, { token: other.token, expected: 404 });
+  const otherTimeline = await call("/api/clinic/worklist", { token: other.token });
+  assert.ok(otherTimeline.every((item) => item.booking_id !== sessionId));
+  await call("/api/clinic/metrics", { token: admin.token });
+  const directory = await call("/api/admin/patients?search=Primary", { token: admin.token });
+  assert.equal(directory.patients[0].patient_id, patient.id);
+  const jobs = await db.query("SELECT kind FROM clinic_notifications WHERE booking_id = $1 ORDER BY id", [sessionId]);
+  assert.deepEqual(jobs.rows.map(({ kind }) => kind), ["confirmation", "reminder"]);
+
+  const queued = await call("/api/queue", {
+    method: "POST", token: other.token, expected: 201,
+    body: { name: "Queue Test", phone: "0000000000", date: daysAhead(1), hospital: "Test", service: "Consultation" },
+  });
+  await call(`/api/queue/${queued.id}/date`, {
+    method: "PUT", token: other.token, body: { date: daysAhead(2) }, expected: 204,
+  });
+  const stream = new AbortController();
+  t.after(() => stream.abort());
+  const events = await fetch(base + "/api/queue/events", {
+    headers: { Authorization: `Bearer ${other.token}` }, signal: AbortSignal.any([stream.signal, AbortSignal.timeout(8000)]),
+  });
+  assert.equal(events.status, 200);
+  const reader = events.body.getReader();
+  assert.match(Buffer.from((await reader.read()).value).toString(), /data: refresh/);
+  for (const action of ["call", "serve"]) {
+    await call(`/api/queue/${queued.id}`, {
+      method: "PATCH", token: doctorLogin.token, body: { action }, expected: 204,
+    });
+    assert.match(Buffer.from((await reader.read()).value).toString(), /data: refresh/);
+  }
+  stream.abort();
+  const served = await call("/api/queue/mine", { token: other.token });
+  assert.equal(served.status, "served");
 });

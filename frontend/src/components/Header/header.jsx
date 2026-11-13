@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import React, { useState, useEffect } from "react";
 
 import { Link, useNavigate } from "react-router-dom";
@@ -11,7 +12,7 @@ import {
   ArrowRightStartOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 
-import PatientRegistration from "../../components/PatientRegistration/PatientRegistration";
+const PatientRegistration = lazy(() => import("../../components/PatientRegistration/PatientRegistration"));
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
@@ -129,6 +130,8 @@ const Header = () => {
     switch (role?.toLowerCase()) {
       case "doctor":
         return "Doctor Dashboard";
+      case "therapist":
+        return "Therapist Dashboard";
       case "admin":
         return "Admin Dashboard";
       case "patient":
@@ -143,6 +146,8 @@ const Header = () => {
     switch (role?.toLowerCase()) {
       case "doctor":
         return "/doctor-dashboard";
+      case "therapist":
+        return "/therapist-dashboard";
       case "admin":
         return "/admin-dashboard";
       case "patient":
@@ -358,6 +363,8 @@ const Header = () => {
       let endpoint = "";
       if (roleStr.toLowerCase() === "doctor") {
         endpoint = "/api/doctors/auth/login";
+      } else if (roleStr.toLowerCase() === "therapist") {
+        endpoint = "/api/therapists/auth/login";
       } else if (roleStr.toLowerCase() === "admin") {
         endpoint = "/api/admin/auth/login";
       } else if (roleStr.toLowerCase() === "patient") {
@@ -383,7 +390,7 @@ const Header = () => {
       const data = await response.json();
 
       // Dynamically handle payload if backend returns 'patient', 'doctor', 'admin', or 'user'
-      const activeUser = data.user || data.patient || data.doctor || data.admin || data;
+      const activeUser = data.user || data.patient || data.doctor || data.therapist || data.admin || data;
 
       // Safely construct full name
       const fullName =
@@ -1030,6 +1037,9 @@ const LoginModal = ({
               >
                 Doctor
               </button>
+              <button className="w-full rounded-md bg-emerald-700 py-3 font-semibold text-white" onClick={() => setLoginRole("therapist")}>
+                Therapist
+              </button>
               <button
                 className="w-full py-3 font-semibold rounded-md text-white bg-gradient-to-r from-green-700 to-emerald-700 hover:opacity-90"
                 onClick={() => setLoginRole("admin")}
@@ -1071,7 +1081,7 @@ const LoginModal = ({
 
         {showPatientReg ? (
           <div>
-            <PatientRegistration />
+            <Suspense fallback={<p>Loading registration…</p>}><PatientRegistration /></Suspense>
             <button
               onClick={() => {
                 setShowPatientReg(false);

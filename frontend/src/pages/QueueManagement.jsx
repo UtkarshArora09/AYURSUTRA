@@ -1,4 +1,4 @@
-import { authHeaders } from "../api/auth";
+import { authHeaders, watchQueue } from "../api/auth";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -25,6 +25,8 @@ const QueueManagement = () => {
 
   // Queue state
   const [queueList, setQueueList] = useState([]);
+  const [scopes, setScopes] = useState([]);
+  const [scopeKey, setScopeKey] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -54,42 +56,36 @@ const QueueManagement = () => {
   // Fetch queue from Firebase (runs on date change or manual refresh or poll interval)
   useEffect(() => {
     let active = true;
-
-    const fetchQueue = async () => {
+    const query = new URLSearchParams({ date: selectedDate });
+    const selected = scopeKey ? JSON.parse(scopeKey) : null;
+    const refresh = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/queue?date=${encodeURIComponent(selectedDate)}`, { headers: authHeaders() });
-        if (!response.ok) throw new Error("Failed to fetch database queues");
-        
-        const data = await response.json();
-        
-        if (!active) return;
-        
-        if (!data) {
-          setQueueList([]);
-          setLoading(false);
+        const scopeResponse = await fetch(`${API_BASE_URL}/api/queue/scopes?${new URLSearchParams({ date: selectedDate })}`, { headers: authHeaders() });
+        if (active && scopeResponse.ok) setScopes(await scopeResponse.json());
+        if (!selected) {
+          if (active) setQueueList([]);
           return;
         }
-
-        setQueueList(data);
-        setLoading(false);
-      } catch (err) {
-        console.error("Error fetching queues:", err);
-        if (active) {
-          setLoading(false);
-        }
+        query.set("hospital", selected.hospital);
+        query.set("service", selected.service);
+        const response = await fetch(`${API_BASE_URL}/api/queue?${query}`, { headers: authHeaders() });
+        if (!response.ok) throw new Error("Unable to load queue");
+        const tickets = await response.json();
+        if (active) setQueueList(tickets);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (active) setLoading(false);
       }
     };
-
-    fetchQueue();
-
-    // Poll every 3 seconds to get real-time state updates
-    const interval = setInterval(fetchQueue, 3000);
-
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [selectedDate, refreshKey]);
+    refresh();
+    if (selected) {
+      query.set("hospital", selected.hospital);
+      query.set("service", selected.service);
+    }
+    const stop = watchQueue(API_BASE_URL, query, refresh);
+    return () => { active = false; stop(); };
+  }, [selectedDate, scopeKey, refreshKey]);
 
   // Mark patient as Emergency
   const handleMarkEmergency = async (patientId, patientName) => {
@@ -152,12 +148,12 @@ const QueueManagement = () => {
 
   // Call Next Patient
   const handleCallNext = async () => {
-    if (queueList.length === 0) {
+    if (!queueList.some((ticket) => ticket.status === "waiting")) {
       alert("📋 The consultation queue is currently empty.");
       return;
     }
 
-    const nextPatient = queueList[0];
+    const nextPatient = queueList.find((ticket) => ticket.status === "waiting");
     const name = nextPatient.name || "Patient";
 
     if (
@@ -221,11 +217,18 @@ const QueueManagement = () => {
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  onChange={(e) => { setSelectedDate(e.target.value); setScopeKey(""); setQueueList([]); }}
                   className="w-full px-4 py-2 bg-green-50 border border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-600 text-green-950 font-bold"
                 />
               </div>
             </div>
+            <select aria-label="Branch and service" value={scopeKey} onChange={(event) => {
+              setScopeKey(event.target.value);
+              setQueueList([]);
+            }} className="rounded-lg border border-green-200 p-2">
+              <option value="">Select branch and service</option>
+              {scopes.map((scope) => <option key={JSON.stringify(scope)} value={JSON.stringify(scope)}>{scope.hospital} / {scope.service}</option>)}
+            </select>
             <button
               onClick={() => setRefreshKey((prev) => prev + 1)}
               className="mt-5 p-2.5 bg-green-50 hover:bg-green-100 text-green-800 rounded-xl border border-green-200 transition"
@@ -364,7 +367,14 @@ const QueueManagement = () => {
                             {patient.hospital}
                           </div>
                           <div className="text-xs text-emerald-700 font-bold mt-0.5 uppercase tracking-wide">
-                            {patient.service}
+                            {patient.service} · {patient.status}
+                          {patient.status === "called" && <button className="ml-2 underline" onClick={async () => {
+                            const result = await fetch(`${API_BASE_URL}/api/queue/${patient.id}`, {
+                              method: "PATCH", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ action: "serve" }),
+                            });
+                            if (!result.ok) alert("Unable to complete ticket");
+                            else setRefreshKey((value) => value + 1);
+                          }}>Mark served</button>}
                           </div>
                         </td>
                         <td className="px-6 py-4">

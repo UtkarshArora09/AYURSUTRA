@@ -9,7 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 import Header from "../components/Header";
 import HeroSection from "../components/Hero/HeroSection";
-import AyurSutraBot from "../components/AyurSutraBot"; // Import the AyurSutraBot component
+import ChatLauncher from "../components/ChatLauncher";
 
 
 const testimonials = [
@@ -251,7 +251,7 @@ const Home = () => (
 
 
     {/* AyurSutra Bot - Floating Chat Widget */}
-    <AyurSutraBot />
+    <ChatLauncher />
   </div>
 );
 

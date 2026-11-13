@@ -17,8 +17,8 @@ import {
 const rawRagUrl = (import.meta.env.VITE_RAG_API_URL || "http://localhost:8001").trim();
 const RAG_API_URL = rawRagUrl.endsWith("/chat") ? rawRagUrl : `${rawRagUrl.replace(/\/$/, "")}/chat`;
 
-const AyurVaidya = () => {
-  const [isOpen, setIsOpen] = useState(false);
+const AyurVaidya = ({ initiallyOpen = false }) => {
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);

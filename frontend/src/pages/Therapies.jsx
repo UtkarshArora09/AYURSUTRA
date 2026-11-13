@@ -270,7 +270,7 @@ const Therapies = () => {
 
 <div className="absolute top-20 right-6 w-36 h-36 rounded-full overflow-hidden shadow-xl animate-float-reverse pointer-events-none z-0">
   <img
-    src="/assets/ayurveda3.png"
+    src="/assets/ayurveda3.webp"
     alt="Ayurveda Symbol"
     className="w-full h-full object-cover"
   />

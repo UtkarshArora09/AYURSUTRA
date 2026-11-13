@@ -1,3 +1,4 @@
+import ClinicAdmin from "./ClinicAdmin";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -28,6 +29,9 @@ const AdminDashboard = () => {
   const [doctors, setDoctors] = useState([]);
   const [therapists, setTherapists] = useState([]);
   const [patients, setPatients] = useState([]);
+  const [patientOffset, setPatientOffset] = useState(0);
+  const [morePatients, setMorePatients] = useState(false);
+  const [patientTotal, setPatientTotal] = useState(0);
   const [therapies, setTherapies] = useState([]);
 
   // Search states
@@ -91,6 +95,32 @@ const AdminDashboard = () => {
     }
   }, [adminUser]);
 
+  useEffect(() => {
+    if (!adminUser || !["overview", "patients"].includes(activeTab)) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const query = new URLSearchParams({
+          offset: activeTab === "overview" ? 0 : patientOffset,
+          search: activeTab === "overview" ? "" : searchQuery,
+        });
+        const token = localStorage.getItem("auth_token");
+        const response = await fetch(`${API_BASE_URL}/api/admin/patients?${query}`, {
+          headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("Unable to load the patient directory");
+        const page = await response.json();
+        if (controller.signal.aborted) return;
+        setPatients(page.patients);
+        setMorePatients(page.hasMore);
+        if (activeTab === "overview") setPatientTotal(page.total);
+      } catch (error) {
+        if (!controller.signal.aborted) setActionError(error.message);
+      }
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [adminUser, activeTab, patientOffset, searchQuery]);
+
   const fetchAllData = async () => {
     setLoading(true);
     setActionError("");
@@ -113,13 +143,6 @@ const AdminDashboard = () => {
       if (resTherapists.ok) {
         const dataTherapists = await resTherapists.json();
         setTherapists(dataTherapists);
-      }
-
-      // Fetch Patients
-      const resPatients = await fetch(`${API_BASE_URL}/api/admin/patients`, { headers });
-      if (resPatients.ok) {
-        const dataPatients = await resPatients.json();
-        setPatients(dataPatients);
       }
 
       // Fetch Therapies
@@ -363,11 +386,7 @@ const AdminDashboard = () => {
     therapist.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredPatients = patients.filter((patient) =>
-    patient.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    patient.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    patient.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPatients = patients;
 
   const handleLogout = () => {
     localStorage.removeItem("ayursutra_user");
@@ -452,7 +471,7 @@ const AdminDashboard = () => {
               type="text"
               placeholder={`Search ${activeTab}...`}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setPatientOffset(0); }}
               className="w-full bg-white pl-12 pr-4 py-3 rounded-xl border border-stone-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
             />
           </div>
@@ -466,7 +485,7 @@ const AdminDashboard = () => {
               {[
                 { label: "Total Doctors", val: doctors.length, icon: AcademicCapIcon, color: "from-emerald-50 to-teal-50 border-emerald-100 text-emerald-800" },
                 { label: "Active Therapists", val: therapists.length, icon: UserGroupIcon, color: "from-amber-50 to-orange-50 border-amber-100 text-amber-800" },
-                { label: "Registered Patients", val: patients.length, icon: UsersIcon, color: "from-blue-50 to-indigo-50 border-blue-100 text-blue-800" },
+                { label: "Registered Patients", val: patientTotal, icon: UsersIcon, color: "from-blue-50 to-indigo-50 border-blue-100 text-blue-800" },
                 { label: "Therapies Available", val: therapies.length, icon: HeartIcon, color: "from-rose-50 to-pink-50 border-rose-100 text-rose-800" },
               ].map((stat, i) => (
                 <div key={i} className={`bg-gradient-to-br ${stat.color} p-6 rounded-2xl border shadow-sm flex items-center justify-between`}>
@@ -662,10 +681,7 @@ const AdminDashboard = () => {
                     <tr className="bg-stone-50 text-stone-500 text-xs font-bold uppercase tracking-wider border-b border-stone-200">
                       <th className="px-6 py-4">Patient ID</th>
                       <th className="px-6 py-4">Name</th>
-                      <th className="px-6 py-4">Age / Gender</th>
                       <th className="px-6 py-4">Email</th>
-                      <th className="px-6 py-4">Mobile</th>
-                      <th className="px-6 py-4">Emergency Contact</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
@@ -675,15 +691,7 @@ const AdminDashboard = () => {
                           {p.patient_id_str || `AYR-2024-${String(p.patient_id).padStart(3, "0")}`}
                         </td>
                         <td className="px-6 py-4 font-semibold text-stone-900">{p.first_name} {p.last_name}</td>
-                        <td className="px-6 py-4 text-stone-600 text-sm">
-                          {p.age} Yrs / {p.gender}
-                        </td>
                         <td className="px-6 py-4 text-stone-600 text-sm">{p.email}</td>
-                        <td className="px-6 py-4 text-stone-500 text-sm">{p.mob_number}</td>
-                        <td className="px-6 py-4 text-sm text-stone-500">
-                          <div>{p.emergency_contact_name}</div>
-                          <div className="text-xs text-stone-400">{p.emergency_contact_number}</div>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -692,6 +700,11 @@ const AdminDashboard = () => {
             )}
           </div>
         )}
+
+        {activeTab === "patients" && <div className="flex gap-4 px-4 py-3">
+          <button disabled={patientOffset === 0} onClick={() => setPatientOffset((offset) => offset - 50)}>Previous patients</button>
+          <button disabled={!morePatients} onClick={() => setPatientOffset((offset) => offset + 50)}>Next patients</button>
+        </div>}
 
         {/* ---------------- THERAPIES TAB ---------------- */}
         {activeTab === "therapies" && (
@@ -967,6 +980,7 @@ const AdminDashboard = () => {
         </div>
       )}
 
+      <ClinicAdmin />
     </div>
   );
 };

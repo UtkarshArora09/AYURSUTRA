@@ -67,7 +67,7 @@ exports.loginTherapist = async (req, res) => {
       getJwtSecret(),
       { expiresIn: "1d" }
     );
-    res.json({ token, therapist });
+    res.json({ token, user: { id: therapist.id, name: therapist.name, email: therapist.email, role: "therapist" } });
   } catch (err) {
     console.error("Therapist login error:", err);
     res.status(500).json({ error: err.message });

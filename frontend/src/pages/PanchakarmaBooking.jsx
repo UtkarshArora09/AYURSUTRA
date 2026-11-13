@@ -11,7 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 import Header from "../components/Header";
 import AppointmentReceipt from "../components/AppointmentReceipt";
-import AyurVaidya from "../components/AyurSutraBot"; // Import Sahayak chatbot
+import ChatLauncher from "../components/ChatLauncher";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
@@ -180,10 +180,7 @@ const PanchakarmaBooking = () => {
       for (let i = 1; i <= 30; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
-        if (date.getDay() !== 0) {
-          // Exclude Sundays
-          dates.push(date.toISOString().split("T")[0]);
-        }
+        dates.push(date.toISOString().split("T")[0]);
       }
       setAvailableDates(dates);
       setLoading(false);
@@ -194,7 +191,7 @@ const PanchakarmaBooking = () => {
     setLoading(true);
     setAvailableSlots([]);
     try {
-      const slots = await availableTimes(API_BASE_URL, doctorId, date);
+      const slots = await availableTimes(API_BASE_URL, doctorId, date, formData.selectedCenter.id, getRecommendedTherapy(doshaType)?.name);
       const optimalTimes = {
         vata: ["10:30", "12:00", "14:00"],
         pitta: ["09:00", "17:00"],
@@ -240,7 +237,11 @@ const PanchakarmaBooking = () => {
   };
 
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({
+      ...prev, [field]: value,
+      ...(["selectedDate", "selectedDoctor", "selectedCenter", "doshaType"].includes(field) && { selectedTimeSlot: null }),
+      ...(["selectedDoctor", "selectedCenter"].includes(field) && { selectedDate: "" }),
+    }));
 
     // Trigger availability fetch when doctor, center, or dosha changes
     if (field === "selectedDoctor" || field === "selectedCenter") {
@@ -828,7 +829,7 @@ const PanchakarmaBooking = () => {
       </div>
 
       {/* Sahayak Chatbot - Floating Assistant */}
-      <AyurVaidya />
+      <ChatLauncher />
     </div>
   );
 };

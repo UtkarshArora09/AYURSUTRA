@@ -1,4 +1,4 @@
-import { authHeaders } from "../api/auth";
+import { authHeaders, watchQueue } from "../api/auth";
 import { QRCodeSVG } from "qrcode.react";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -57,6 +57,7 @@ const JoinQueue = () => {
   const [activeTicket, setActiveTicket] = useState(null);
   const [loading, setLoading] = useState(false);
   const [currentLivePosition, setCurrentLivePosition] = useState(null);
+  const [moveDate, setMoveDate] = useState("");
 
   // Load user profile and saved ticket
   useEffect(() => {
@@ -86,20 +87,19 @@ const JoinQueue = () => {
         if (!response.ok || !mounted) return;
         const ticket = await response.json();
         if (mounted) {
-          setActiveTicket(ticket ? { ...ticket, key: ticket.id } : null);
+          setActiveTicket(ticket && ["waiting", "called"].includes(ticket.status) ? { ...ticket, key: ticket.id } : null);
           setCurrentLivePosition(ticket?.position || null);
         }
       } catch (error) {
         console.error("Unable to refresh queue ticket", error);
       }
     };
-    refresh();
-    const interval = setInterval(refresh, 4000);
+    const stop = watchQueue(API_BASE_URL, "", refresh);
     return () => {
       mounted = false;
-      clearInterval(interval);
+      stop();
     };
-  }, [currentUser]);
+  }, [currentUser, activeTicket?.id, activeTicket?.date]);
 
   // Handle Form Submission (Join Queue)
   const handleJoinQueue = async (e) => {
@@ -387,13 +387,13 @@ Helpline: 1800-AYUR-CARE`;
             {/* Live Status Banner */}
             <div className="bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl p-6 shadow-lg border border-emerald-400 text-center animate-pulse-subtle">
               <CheckCircleIcon className="w-12 h-12 mx-auto mb-2 text-white" />
-              <h3 className="text-lg md:text-xl font-bold">Successfully Joined Queue!</h3>
+              <h3 className="text-lg md:text-xl font-bold">{activeTicket.status === "called" ? "Please proceed to the consultation room" : "You are in the queue"}</h3>
               <div className="mt-4 flex flex-col md:flex-row gap-4 justify-center items-center text-sm font-medium">
                 <div className="bg-white/20 px-4 py-2 rounded-xl">
                   Live Position: <strong className="text-yellow-200 text-base">{currentLivePosition || activeTicket.position ? `#${currentLivePosition || activeTicket.position}` : "Calculating…"}</strong>
                 </div>
                 <div className="bg-white/20 px-4 py-2 rounded-xl">
-                  Est. Wait: <strong className="text-yellow-200 text-base">{currentLivePosition || activeTicket.position ? `${(currentLivePosition || activeTicket.position) * 5} mins` : "Calculating…"}</strong>
+                  Est. Wait: <strong className="text-yellow-200 text-base">{currentLivePosition || activeTicket.position ? activeTicket.service_minutes == null ? "Awaiting service history" : `~${(currentLivePosition || activeTicket.position) * Number(activeTicket.service_minutes)} mins` : "Calculating…"}</strong>
                 </div>
                 {activeTicket.priority === "emergency" && (
                   <div className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold animate-bounce">
@@ -403,6 +403,25 @@ Helpline: 1800-AYUR-CARE`;
               </div>
             </div>
 
+            {activeTicket.status === "waiting" && (
+              <form className="flex flex-wrap items-center gap-3 rounded-xl bg-white p-4" onSubmit={async (event) => {
+                event.preventDefault();
+                try {
+                  const result = await fetch(`${API_BASE_URL}/api/queue/${activeTicket.id}/date`, {
+                    method: "PUT", headers: { ...authHeaders(), "Content-Type": "application/json" },
+                    body: JSON.stringify({ date: moveDate }),
+                  });
+                  if (!result.ok) throw new Error((await result.json()).message);
+                  setMoveDate("");
+                } catch (error) {
+                  alert(error.message);
+                }
+              }}>
+                <label htmlFor="move-date">Move your ticket to</label>
+                <input id="move-date" type="date" required value={moveDate} onChange={(event) => setMoveDate(event.target.value)} />
+                <button className="rounded-lg bg-green-800 px-3 py-2 text-white">Change date</button>
+              </form>
+            )}
             {/* The Ticket Graphic */}
             <div className="bg-white rounded-3xl shadow-xl border-t-8 border-green-600 p-6 md:p-8 max-w-lg mx-auto relative overflow-hidden">
               {/* Ticket Scalloped Top Effect */}

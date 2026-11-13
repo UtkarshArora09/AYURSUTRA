@@ -1,5 +1,5 @@
 import { authHeaders, availableTimes } from "../api/auth";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   CalendarIcon,
   ClockIcon,
@@ -109,10 +109,7 @@ const PanchakarmaReschedule = () => {
         // Start from 3 days ahead
         const date = new Date(today);
         date.setDate(today.getDate() + i);
-        if (date.getDay() !== 0) {
-          // Exclude Sundays
-          dates.push(date.toISOString().split("T")[0]);
-        }
+        dates.push(date.toISOString().split("T")[0]);
       }
       setAvailableDates(dates);
       setLoading(false);
@@ -124,7 +121,7 @@ const PanchakarmaReschedule = () => {
     setLoading(true);
     setAvailableSlots([]);
     try {
-      const slots = await availableTimes(API_BASE_URL, appointmentData.doctor.id, date);
+      const slots = await availableTimes(API_BASE_URL, appointmentData.doctor.id, date, appointmentData.center.id, appointmentData.treatment.name);
       setAvailableSlots(slots.map((time) => ({ time, available: true, therapyDuration: "90 minutes" })));
     } catch (error) {
       alert(error.message);

@@ -1,22 +1,23 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
-import Therapies from "./pages/Therapies";
+const Therapies = lazy(() => import("./pages/Therapies"));
 import Home from "./pages/Home";
 
 // Patient-related imports
-import PatientRegistration from "./components/PatientRegistration/PatientRegistration";
-import PatientList from "./pages/Patients";
-import PatientProfiles from "./pages/Patients";
-import PanchakarmaBooking from "./pages/PanchakarmaBooking";
-import PanchakarmaReschedule from "./pages/PanchakarmaReschedule";
-import JoinQueue from "./pages/JoinQueue";
-import QueueManagement from "./pages/QueueManagement";
-import DoctorDashboard from "./components/DoctorDashboard";
-import PatientDashboard from "./components/PatientDashboard";
-import AdminDashboard from "./components/AdminDashboard";
-import ResetPassword from "./pages/newpassword";
-import Reports from "./pages/Reports";
+const PatientRegistration = lazy(() => import("./components/PatientRegistration/PatientRegistration"));
+const PatientList = lazy(() => import("./pages/Patients"));
+const PatientProfiles = lazy(() => import("./pages/Patients"));
+const PanchakarmaBooking = lazy(() => import("./pages/PanchakarmaBooking"));
+const PanchakarmaReschedule = lazy(() => import("./pages/PanchakarmaReschedule"));
+const JoinQueue = lazy(() => import("./pages/JoinQueue"));
+const QueueManagement = lazy(() => import("./pages/QueueManagement"));
+const ClinicWorkspace = lazy(() => import("./components/ClinicWorkspace"));
+const PatientDashboard = lazy(() => import("./components/PatientDashboard"));
+const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
+const ResetPassword = lazy(() => import("./pages/newpassword"));
+
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
         <Header />
 
         <main className="flex-grow">
+          <Suspense fallback={<p className="p-8 pt-24" role="status">Loading page…</p>}>
           <Routes>
             {/* Home Route */}
             <Route path="/" element={<Home />} />
@@ -52,10 +54,11 @@ function App() {
 
             {/* Queue Routes */}
             <Route path="/queue" element={<Navigate to="/queue/join" replace />} />
-            <Route path="/dashboard" element={<PatientDashboard />} />
+            <Route path="/dashboard" element={<><PatientDashboard /><ClinicWorkspace embedded /></>} />
             <Route path="/queuetrends" element={<Navigate to="/queue/join" replace />} />
-            <Route path="/patient-dashboard" element={<PatientDashboard />} />
-            <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+            <Route path="/patient-dashboard" element={<><PatientDashboard /><ClinicWorkspace embedded /></>} />
+            <Route path="/therapist-dashboard" element={<ClinicWorkspace />} />
+            <Route path="/doctor-dashboard" element={<ClinicWorkspace />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
 
             {/* New password */}
@@ -63,7 +66,7 @@ function App() {
             <Route path="/reset-password/:token" element={<ResetPassword />} />
 
             {/* Reports */}
-            <Route path="/reports" element={<Reports />} />
+            <Route path="/reports" element={<ClinicWorkspace reportsOnly />} />
 
             {/* 404 catch-all */}
             <Route
@@ -84,6 +87,7 @@ function App() {
               }
             />
           </Routes>
+          </Suspense>
         </main>
 
         <Footer />

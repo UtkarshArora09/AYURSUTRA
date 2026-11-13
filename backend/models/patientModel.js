@@ -96,6 +96,17 @@ const Patient = {
     return result.rows;
   },
 
+  async directory(offset, search) {
+    const term = typeof search === "string" ? search.slice(0, 100) : "";
+    const { rows } = await db.query(
+      `SELECT patient_id, first_name, last_name, email, created_at, count(*) OVER () AS total
+       FROM patients WHERE strpos(lower(concat_ws(' ', first_name, last_name, email)), lower($1)) > 0 OR $1 = ''
+       ORDER BY created_at DESC, patient_id DESC LIMIT 51 OFFSET $2`,
+      [term, Math.max(0, Math.min(100000, Number.parseInt(offset, 10) || 0))]
+    );
+    return { patients: rows.slice(0, 50), total: Number(rows[0]?.total || 0), hasMore: rows.length > 50 };
+  },
+
   // Get patient by ID
   async findById(patientId) {
     const result = await db.query(

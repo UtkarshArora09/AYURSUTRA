@@ -189,7 +189,7 @@ exports.deleteTherapist = async (req, res) => {
 //Admin CRUD: Patients
 exports.getPatients = async (req, res) => {
   try {
-    const patients = await Patient.findAll();
+    const patients = await Patient.directory(req.query.offset, req.query.search);
     res.json(patients);
   } catch (err) {
     res.status(500).json({ message: "Admin request failed" });

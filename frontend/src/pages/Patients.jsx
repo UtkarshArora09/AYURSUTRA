@@ -1,6 +1,7 @@
+import { lazy } from "react";
 import React from 'react';
 import Header from '../components/Header';
-import PatientRegistration from '../components/PatientRegistration/PatientRegistration';
+const PatientRegistration = lazy(() => import("../components/PatientRegistration/PatientRegistration"));
 
 const Patients = () => {
   // Example backend generated patient ID placeholder

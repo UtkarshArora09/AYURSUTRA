@@ -18,13 +18,13 @@ const slides = [
   {
     title: "Basti",
     emoji: "💧",
-    image: "/assets/basti.jpg",
+    image: "/assets/basti.webp",
     desc: "Medicated Enema\nThe master healer balancing Vata,\nstrengthening nerves, joints, and cleansing deeply."
   },
   {
     title: "Nasya",
     emoji: "👃",
-    image: "/assets/nasya.jpg",
+    image: "/assets/nasya.webp",
     desc: "Nasal Remedy\nDelivers potent herbs to your mind, nerves, and senses,\nclearing head and spirit."
   },
   {

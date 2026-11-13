@@ -19,7 +19,10 @@ import os
 import glob
 import secrets
 from uuid import UUID
-import psycopg
+from psycopg_pool import ConnectionPool, PoolTimeout
+from contextlib import asynccontextmanager
+from threading import Lock
+from time import monotonic
 import requests
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +40,21 @@ TOP_K = int(os.getenv("TOP_K", 4))
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", 0.35))
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-app = FastAPI(title="AyurSutra Advanced RAG Chatbot")
+pool = ConnectionPool(DATABASE_URL, min_size=0, max_size=8, timeout=5, open=False) if DATABASE_URL else None
+
+
+@asynccontextmanager
+async def lifespan(app):
+    if pool:
+        pool.open()
+    try:
+        yield
+    finally:
+        if pool:
+            pool.close()
+
+
+app = FastAPI(title="AyurSutra Advanced RAG Chatbot", lifespan=lifespan)
 
 # CORS middleware
 app.add_middleware(
@@ -102,7 +119,10 @@ DOSHA_QUIZ = [
 def get_db_connection():
     if not DATABASE_URL:
         raise HTTPException(status_code=500, detail="DATABASE_URL is not configured.")
-    return psycopg.connect(DATABASE_URL)
+    try:
+        return pool.getconn()
+    except PoolTimeout:
+        raise HTTPException(status_code=503, detail="Database temporarily unavailable.")
 
 
 def get_embedding(text: str) -> list[float]:
@@ -142,19 +162,49 @@ def get_embedding(text: str) -> list[float]:
         )
 
 
+model_cache = {}
+model_cache_lock = Lock()
+
+
+def cached_models(provider, discover):
+    with model_cache_lock:
+        expiry, models = model_cache.get(provider, (0, []))
+        if monotonic() >= expiry:
+            try:
+                models = discover()
+            except Exception:
+                model_cache[provider] = (monotonic() + 60, models)
+            else:
+                model_cache[provider] = (monotonic() + 900, models)
+        return models
+
+
+def groq_models():
+    return [
+        model.id for model in groq_client.models.list().data
+        if not any(kind in model.id for kind in ("whisper", "guard", "vision", "embed"))
+    ]
+
+
+def gemini_models_for_key():
+    response = requests.get(
+        "https://generativelanguage.googleapis.com/v1beta/models",
+        headers={"x-goog-api-key": GEMINI_API_KEY}, timeout=10,
+    )
+    response.raise_for_status()
+    models = [
+        model["name"].removeprefix("models/")
+        for model in response.json().get("models", [])
+        if "generateContent" in model.get("supportedGenerationMethods", [])
+    ]
+    return sorted(models, key=lambda model: "flash" not in model)
+
+
 def generate_llm_response(prompt: str, fallback_chunks: list[dict] = None) -> str:
     """Generate LLM response trying Groq first, then seamlessly falling back to Google Gemini, and finally knowledge chunks."""
     # 1. Attempt Groq generation if client and key are active
     if groq_client and GROQ_API_KEY:
-        groq_candidates = [GROQ_MODEL]
-        try:
-            m_list = groq_client.models.list()
-            if m_list and m_list.data:
-                for m in m_list.data:
-                    if not any(x in m.id for x in ["whisper", "guard", "vision", "embed"]):
-                        groq_candidates.append(m.id)
-        except Exception as e:
-            print(f"[Warning] Could not list Groq models: {e}")
+        groq_candidates = [GROQ_MODEL, *cached_models("groq", groq_models)]
 
         for g_model in list(dict.fromkeys(groq_candidates)):
             try:
@@ -172,20 +222,7 @@ def generate_llm_response(prompt: str, fallback_chunks: list[dict] = None) -> st
     # 2. Attempt Gemini generation if GEMINI_API_KEY is available
     if GEMINI_API_KEY:
         gemini_models = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-        try:
-            # Discover available models for key
-            list_res = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}", timeout=10)
-            if list_res.status_code == 200:
-                available_models = [
-                    m["name"].replace("models/", "")
-                    for m in list_res.json().get("models", [])
-                    if "generateContent" in m.get("supportedGenerationMethods", [])
-                ]
-                # prioritize 3.6-flash or first flash model
-                flash_models = [m for m in available_models if "flash" in m]
-                gemini_models = (flash_models + available_models + gemini_models)
-        except Exception as e:
-            print(f"[Warning] Could not fetch Gemini model list: {e}")
+        gemini_models = cached_models("gemini", gemini_models_for_key) + gemini_models
 
         for gemini_model in list(dict.fromkeys(gemini_models)):
             try:
@@ -468,7 +505,7 @@ def chat(req: ChatRequest):
             log_interaction(conn, query, [], warning, 1.0)
             save_chat_history(conn, session_id, "user", query)
             save_chat_history(conn, session_id, "assistant", warning)
-            conn.close()
+            pool.putconn(conn)
         except Exception as e:
             print(f"Error logging emergency flow: {e}")
 
@@ -588,7 +625,7 @@ Sahayak:"""
             is_quiz=False
         )
     finally:
-        conn.close()
+        pool.putconn(conn)
 
 
 @app.get("/")
@@ -675,4 +712,4 @@ def reingest(authorization: str | None = Header(default=None)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Re-ingestion failed: {str(e)}")
     finally:
-        conn.close()
+        pool.putconn(conn)

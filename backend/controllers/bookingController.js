@@ -1,5 +1,11 @@
 const Booking = require("../models/bookingModel");
 
+function publicBooking(booking) {
+  const result = { ...booking };
+  delete result.session_notes;
+  return result;
+}
+
 function rejectBookingError(error, res) {
   if (error.status >= 400 && error.status < 500) return res.status(error.status).json({ message: error.message });
   if (["22P02", "22008", "22007", "23503", "22003"].includes(error.code)) {
@@ -9,6 +15,12 @@ function rejectBookingError(error, res) {
 }
 
 
+
+function publicBooking(booking) {
+  const result = { ...booking };
+  delete result.session_notes;
+  return result;
+}
 
 function rejectBookingError(error, res) {
   if (error.status >= 400 && error.status < 500) return res.status(error.status).json({ message: error.message });
@@ -24,7 +36,7 @@ const createBooking = async (req, res) => {
     const booking = await Booking.createBooking({ ...req.body, patient_id: req.user.id, status: "pending" });
     res.status(201).json({
       message: "Booking created successfully",
-      data: booking,
+      data: publicBooking(booking),
     });
   } catch (error) {
     return rejectBookingError(error, res);
@@ -35,7 +47,7 @@ const createBooking = async (req, res) => {
 const getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.getAllBookings(req.user);
-    res.status(200).json(bookings);
+    res.status(200).json(bookings.map(publicBooking));
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -46,7 +58,7 @@ const getBookingById = async (req, res) => {
   try {
     const booking = await Booking.getBookingById(req.params.id, req.user);
     if (!booking) return res.status(404).json({ error: "Booking not found" });
-    res.status(200).json(booking);
+    res.status(200).json(publicBooking(booking));
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -88,7 +100,7 @@ const search = async (req, res) => {
 
     const scheduled = row.scheduled_date && row.scheduled_time
       ? new Date(`${row.scheduled_date}T${row.scheduled_time}+05:30`) : null;
-    const active = ["pending", "confirmed", "scheduled", "rescheduled"].includes(row.status);
+    const active = ["pending", "confirmed", "scheduled", "rescheduled"].includes(row.status?.toLowerCase() || "pending");
     const deadline = (hours) => scheduled ? new Date(scheduled.getTime() - hours * 3600000).toISOString() : null;
     const mapped = {
       bookingId: String(row.booking_id),
@@ -103,10 +115,10 @@ const search = async (req, res) => {
         specialization: doctor.specialization,
         avatar: "https://randomuser.me/api/portraits/women/45.jpg"
       },
-      center: center,
+      center: { ...center, id: row.center_id },
       treatment: {
         name: row.therapy_type || "Vamana",
-        duration: "90 minutes"
+        duration: `${row.duration_minutes} minutes`
       },
       status: row.status ? row.status.toLowerCase() : "pending",
       bookingDate: row.scheduled_date || "",
@@ -128,7 +140,7 @@ const rescheduleBooking = async (req, res) => {
     const { new_date, new_time } = req.body;
     const booking = await Booking.rescheduleBooking(req.params.id, req.user.id, new_date, new_time);
     if (!booking) return res.status(404).json({ error: "Booking not found" });
-    res.status(200).json({ message: "Booking rescheduled successfully", data: booking });
+    res.status(200).json({ message: "Booking rescheduled successfully", data: publicBooking(booking) });
   } catch (error) {
     return rejectBookingError(error, res);
   }
@@ -139,7 +151,7 @@ const cancelBooking = async (req, res) => {
   try {
     const booking = await Booking.cancelBooking(req.params.id, req.user.id);
     if (!booking) return res.status(404).json({ error: "Booking not found" });
-    res.status(200).json({ message: "Booking cancelled successfully", data: booking });
+    res.status(200).json({ message: "Booking cancelled successfully", data: publicBooking(booking) });
   } catch (error) {
     return rejectBookingError(error, res);
   }
@@ -159,7 +171,7 @@ const getBookingsByPatientId = async (req, res) => {
        ORDER BY b.scheduled_date DESC`,
       [patient_id, doctor]
     );
-    res.json(result.rows);
+    res.json(result.rows.map(publicBooking));
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -167,7 +179,7 @@ const getBookingsByPatientId = async (req, res) => {
 
 const availability = async (req, res) => {
   try {
-    res.json(await Booking.availableTimes(req.query.doctorId, req.query.date));
+    res.json(await Booking.availableTimes(req.query.doctorId, req.query.date, req.query.centerId, req.query.therapy));
   } catch (error) {
     return rejectBookingError(error, res);
   }
