@@ -16,6 +16,7 @@ Run:
 """
 
 import os
+import re
 import glob
 import secrets
 from uuid import UUID
@@ -258,7 +259,7 @@ def generate_llm_response(prompt: str, fallback_chunks: list[dict] = None) -> st
         return f"{top_chunks_text}\n\n*For personalized medical guidance, please consult our AyurSutra Ayurvedic physicians.*"
 
     # 4. Final safety fallback
-    return "I am unable to connect to the AI model right now. Please check our clinic services or contact our staff directly at +91 98765 43210."
+    return ""
 
 
 def reingest_knowledge_base(conn) -> int:
@@ -335,7 +336,14 @@ def save_chat_history(conn, session_id: str, role: str, content: str):
 
 def retrieve_vector_chunks(conn, query: str, k: int = TOP_K):
     """Query similarity search in pgvector."""
-    query_embedding = get_embedding(query)
+    if not GEMINI_API_KEY:
+        return []
+    try:
+        query_embedding = get_embedding(query)
+    except HTTPException:
+        # A provider outage should still allow clinic navigation or the generation fallback.
+        print("Gemini embeddings unavailable. Continuing without vector results.")
+        return []
     cur = conn.cursor()
     cur.execute(
         """
@@ -477,6 +485,31 @@ def log_interaction(conn, query: str, chunk_ids: list[int], answer: str, confide
         cur.close()
 
 
+def offline_reply(query: str) -> str:
+    text = query.casefold()
+    if re.search(r"\b(reschedul\w*|cancel\w*)\b", text):
+        return (
+            "To reschedule or cancel a Panchakarma appointment, open **Appointments**, "
+            "choose **Panchakarma**, and enter the booking ID from your receipt. "
+            "For a consultation ticket, open **Queue** to change the date or leave the queue."
+        )
+    if re.search(r"\b(queue|ticket|wait time)\b", text):
+        return (
+            "Open **Queue** and choose a hospital, service, and date to join. "
+            "Keep the ticket page open to see your position and when staff call you."
+        )
+    if re.search(r"\b(appointment|book|booking|consultation)\b", text):
+        return (
+            "For a general consultation, sign in and open **Queue**, then choose **General Consultation**. "
+            "To book Panchakarma, open **Appointments** and select **Panchakarma**."
+        )
+    return (
+        "I can help you find clinic services and start the Dosha quiz. For a symptom or other "
+        "health concern, a clinician can assess what is happening. To request a consultation, "
+        "sign in, open **Queue**, and select **General Consultation**."
+    )
+
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     query = req.query.strip()
@@ -536,6 +569,12 @@ def chat(req: ChatRequest):
             log_interaction(conn, query, [], resp.answer, 1.0)
             return resp
 
+        if not (GEMINI_API_KEY or groq_client):
+            answer = offline_reply(query)
+            save_chat_history(conn, session_id, "user", query)
+            save_chat_history(conn, session_id, "assistant", answer)
+            return ChatResponse(answer=answer, confidence=0.0)
+
         # 3. Hybrid DB Retrieval & General RAG Query
         vector_chunks = retrieve_vector_chunks(conn, query)
 
@@ -556,17 +595,13 @@ Patient Question: {query}
 Provide a helpful, empathetic Ayurvedic explanation and guidance (e.g. related Doshas like Vata/Pitta/Kapha, calming therapies like Shirodhara/Abhyanga, herbs, and diet). Suggest consulting an AyurSutra physician for formal medical assessment.
 Sahayak:"""
             answer = generate_llm_response(gen_prompt)
-            if answer and not answer.startswith("I am unable"):
+            if answer:
                 save_chat_history(conn, session_id, "user", query)
                 save_chat_history(conn, session_id, "assistant", answer)
                 log_interaction(conn, query, [], answer, top_confidence)
                 return ChatResponse(answer=answer, confidence=top_confidence)
 
-            fallback = (
-                "I'm not fully sure about that from our Ayurveda knowledge base — "
-                "it is best to reach out to the AyurSutra clinic directly so a doctor or staff member can guide you. "
-                "\n\n📞 Clinic Contact: +91 98765 43210"
-            )
+            fallback = offline_reply(query)
             save_chat_history(conn, session_id, "user", query)
             save_chat_history(conn, session_id, "assistant", fallback)
             log_interaction(conn, query, [], fallback, top_confidence)
@@ -607,7 +642,7 @@ Patient Current Question: {query}
 Sahayak:"""
 
         # 4. Generate response via Groq / Gemini multi-provider
-        answer = generate_llm_response(system_prompt, fallback_chunks=vector_chunks)
+        answer = generate_llm_response(system_prompt, fallback_chunks=vector_chunks) or offline_reply(query)
 
         sources = list({c["source"] for c in vector_chunks}) if vector_chunks else []
         chunk_ids = [c["id"] for c in vector_chunks] if vector_chunks else []

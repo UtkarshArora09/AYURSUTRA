@@ -147,7 +147,7 @@ const AyurVaidya = ({ initiallyOpen = false }) => {
       console.error("Error querying Sahayak RAG chatbot:", error);
       const errorMessage = {
         id: Date.now() + "-bot-err",
-        text: "😔 *I am having trouble connecting to my Ayurvedic knowledge core right now.* Please verify that the `rag-service` backend is running and try again, or consult the clinic staff directly.",
+        text: "Sahayak could not respond right now. Try again, or open Queue to request a general consultation.",
         sender: "bot",
         timestamp: new Date(),
       };
