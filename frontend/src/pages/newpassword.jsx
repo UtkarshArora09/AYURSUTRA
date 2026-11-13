@@ -1,3 +1,4 @@
+import { getPasswordStrength } from "../passwordStrength";
 import React, { useState, useEffect } from "react";
 import { useParams, useSearchParams, useNavigate, Link } from "react-router-dom";
 import {
@@ -28,8 +29,6 @@ const ResetPassword = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState("");
-  const [passwordMatch, setPasswordMatch] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resetStatus, setResetStatus] = useState("idle"); // idle, success, error, invalid_token
   const [errorMessage, setErrorMessage] = useState("");
@@ -63,7 +62,7 @@ const ResetPassword = () => {
             data.message || "This reset link has expired or is invalid."
           );
         }
-      } catch (error) {
+      } catch {
         setTokenValid(false);
         setErrorMessage("Unable to verify reset link. Please try again later.");
       }
@@ -72,51 +71,8 @@ const ResetPassword = () => {
     verifyToken();
   }, [token, email]);
 
-  // Check password strength
-  useEffect(() => {
-    const { password } = formData;
-    if (!password) {
-      setPasswordStrength("");
-      return;
-    }
-
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[a-z]/.test(password)) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[0-9]/.test(password)) strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
-
-    switch (strength) {
-      case 0:
-      case 1:
-        setPasswordStrength("Very Weak");
-        break;
-      case 2:
-        setPasswordStrength("Weak");
-        break;
-      case 3:
-        setPasswordStrength("Fair");
-        break;
-      case 4:
-        setPasswordStrength("Good");
-        break;
-      case 5:
-        setPasswordStrength("Strong");
-        break;
-      default:
-        setPasswordStrength("");
-    }
-  }, [formData.password]);
-
-  // Check password match
-  useEffect(() => {
-    if (formData.confirmPassword) {
-      setPasswordMatch(formData.password === formData.confirmPassword);
-    } else {
-      setPasswordMatch(true);
-    }
-  }, [formData.password, formData.confirmPassword]);
+  const passwordStrength = getPasswordStrength(formData.password);
+  const passwordMatch = !formData.confirmPassword || formData.password === formData.confirmPassword;
 
   const handleChange = (e) => {
     const { name, value } = e.target;

@@ -15,6 +15,54 @@ import ChatLauncher from "../components/ChatLauncher";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
+// Mock data - Replace with actual API calls
+const doctorAvatars = {
+  1: "https://randomuser.me/api/portraits/women/45.jpg", // Dr. Priya Sharma
+  2: "https://randomuser.me/api/portraits/men/35.jpg", // Dr. Rajesh Kumar
+  3: "https://randomuser.me/api/portraits/women/32.jpg", // Dr. Meera Patel
+};
+
+const centers = [
+  {
+    id: 1,
+    name: "AyurSutra Wellness Center - Mumbai",
+    address: "Bandra West, Mumbai, Maharashtra",
+    facilities: ["Panchakarma Suite", "Meditation Room", "Herbal Garden"],
+    rating: 4.6,
+  },
+  {
+    id: 2,
+    name: "Vedic Healing Center - Pune",
+    address: "Koregaon Park, Pune, Maharashtra",
+    facilities: [
+      "Traditional Therapy Rooms",
+      "Yoga Studio",
+      "Organic Kitchen",
+    ],
+    rating: 4.8,
+  },
+  {
+    id: 3,
+    name: "Holistic Ayurveda Clinic - Delhi",
+    address: "Greater Kailash, New Delhi",
+    facilities: [
+      "Modern Equipment",
+      "Expert Therapists",
+      "Consultation Rooms",
+    ],
+    rating: 4.5,
+  },
+];
+
+function getBookingDates() {
+  const today = new Date();
+  return Array.from({ length: 30 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + index + 1);
+    return date.toISOString().slice(0, 10);
+  });
+}
+
 const PanchakarmaBooking = () => {
   // Patient data (auto-fetched from backend/database)
   const [patientData, setPatientData] = useState({
@@ -36,8 +84,7 @@ const PanchakarmaBooking = () => {
 
   // Data states
   const [doctors, setDoctors] = useState([]);
-  const [centers, setCenters] = useState([]);
-  const [availableDates, setAvailableDates] = useState([]);
+  const [availableDates] = useState(getBookingDates);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [recommendedTreatment, setRecommendedTreatment] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -45,69 +92,6 @@ const PanchakarmaBooking = () => {
 
   // Booking confirmation data
   const [confirmedBookingData, setConfirmedBookingData] = useState(null);
-
-  // Mock data - Replace with actual API calls
-  const doctorAvatars = {
-    1: "https://randomuser.me/api/portraits/women/45.jpg", // Dr. Priya Sharma
-    2: "https://randomuser.me/api/portraits/men/35.jpg", // Dr. Rajesh Kumar
-    3: "https://randomuser.me/api/portraits/women/32.jpg", // Dr. Meera Patel
-  };
-
-  useEffect(() => {
-    fetchPatientData();
-    fetchDoctors();
-    setCenters(mockCenters);
-  }, []);
-
-  const fetchDoctors = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/doctors`);
-      if (!res.ok) throw new Error("Failed to fetch doctors");
-      const data = await res.json();
-
-      // Attach avatars to doctors
-      const doctorsWithAvatars = data.map((doc) => ({
-        ...doc,
-        avatar: doctorAvatars[doc.id] || "https://via.placeholder.com/100",
-      }));
-
-      setDoctors(doctorsWithAvatars);
-    } catch (error) {
-      console.error("Error fetching doctors:", error);
-    }
-  };
-
-  const mockCenters = [
-    {
-      id: 1,
-      name: "AyurSutra Wellness Center - Mumbai",
-      address: "Bandra West, Mumbai, Maharashtra",
-      facilities: ["Panchakarma Suite", "Meditation Room", "Herbal Garden"],
-      rating: 4.6,
-    },
-    {
-      id: 2,
-      name: "Vedic Healing Center - Pune",
-      address: "Koregaon Park, Pune, Maharashtra",
-      facilities: [
-        "Traditional Therapy Rooms",
-        "Yoga Studio",
-        "Organic Kitchen",
-      ],
-      rating: 4.8,
-    },
-    {
-      id: 3,
-      name: "Holistic Ayurveda Clinic - Delhi",
-      address: "Greater Kailash, New Delhi",
-      facilities: [
-        "Modern Equipment",
-        "Expert Therapists",
-        "Consultation Rooms",
-      ],
-      rating: 4.5,
-    },
-  ];
 
   const doshaTypes = [
     { id: "vata", name: "Vata", description: "Air & Space elements" },
@@ -120,72 +104,58 @@ const PanchakarmaBooking = () => {
     },
   ];
 
-  // Fetch patient data on component mount
   useEffect(() => {
-    fetchPatientData();
-    setCenters(mockCenters);
-  }, []);
+    const fetchDoctors = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/doctors`);
+        if (!res.ok) throw new Error("Failed to fetch doctors");
+        const data = await res.json();
 
-  // Effect to load dates when step changes to 3
-  useEffect(() => {
-    if (
-      step === 3 &&
-      formData.selectedDoctor &&
-      formData.selectedCenter &&
-      availableDates.length === 0
-    ) {
-      fetchAvailableDates(
-        formData.selectedDoctor.id,
-        formData.selectedCenter.id
-      );
-    }
-  }, [step, formData.selectedDoctor, formData.selectedCenter]);
+        // Attach avatars to doctors
+        const doctorsWithAvatars = data.map((doc) => ({
+          ...doc,
+          avatar: doctorAvatars[doc.id] || "https://via.placeholder.com/100",
+        }));
 
-  const fetchPatientData = async () => {
-    try {
-      const userRaw = localStorage.getItem("ayursutra_user");
-      if (userRaw) {
-        const user = JSON.parse(userRaw);
-        if (user.role === "patient") {
-          const patientId = user.patient_id || user.id;
-          if (patientId) {
-            const response = await fetch(`${API_BASE_URL}/api/patients/${patientId}`, { headers: authHeaders() });
-            if (response.ok) {
-              const data = await response.json();
-              setPatientData({
-                id: data.patient_id,
-                patientId: `AYR-2026-${String(data.patient_id).padStart(3, "0")}`,
-                name: `${data.first_name} ${data.last_name}`.trim(),
-              });
-              setFormData((prev) => ({
-                ...prev,
-                mobileNumber: data.mob_number || "",
-                doshaType: (data.dosha || "").toLowerCase() || "",
-              }));
+        setDoctors(doctorsWithAvatars);
+      } catch (error) {
+        console.error("Error fetching doctors:", error);
+      }
+    };
+
+    const fetchPatientData = async () => {
+      try {
+        const userRaw = localStorage.getItem("ayursutra_user");
+        if (userRaw) {
+          const user = JSON.parse(userRaw);
+          if (user.role === "patient") {
+            const patientId = user.patient_id || user.id;
+            if (patientId) {
+              const response = await fetch(`${API_BASE_URL}/api/patients/${patientId}`, { headers: authHeaders() });
+              if (response.ok) {
+                const data = await response.json();
+                setPatientData({
+                  id: data.patient_id,
+                  patientId: `AYR-2026-${String(data.patient_id).padStart(3, "0")}`,
+                  name: `${data.first_name} ${data.last_name}`.trim(),
+                });
+                setFormData((prev) => ({
+                  ...prev,
+                  mobileNumber: data.mob_number || "",
+                  doshaType: (data.dosha || "").toLowerCase() || "",
+                }));
+              }
             }
           }
         }
+      } catch (error) {
+        console.error("Error fetching patient data in booking:", error);
       }
-    } catch (error) {
-      console.error("Error fetching patient data in booking:", error);
-    }
-  };
+    };
 
-  const fetchAvailableDates = async (doctorId, centerId) => {
-    setLoading(true);
-    // TODO: Replace with actual API call
-    setTimeout(() => {
-      const dates = [];
-      const today = new Date();
-      for (let i = 1; i <= 30; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        dates.push(date.toISOString().split("T")[0]);
-      }
-      setAvailableDates(dates);
-      setLoading(false);
-    }, 1000);
-  };
+    fetchPatientData();
+    fetchDoctors();
+  }, []);
 
   const fetchTimeSlots = async (date, doctorId, doshaType) => {
     setLoading(true);
@@ -242,18 +212,6 @@ const PanchakarmaBooking = () => {
       ...(["selectedDate", "selectedDoctor", "selectedCenter", "doshaType"].includes(field) && { selectedTimeSlot: null }),
       ...(["selectedDoctor", "selectedCenter"].includes(field) && { selectedDate: "" }),
     }));
-
-    // Trigger availability fetch when doctor, center, or dosha changes
-    if (field === "selectedDoctor" || field === "selectedCenter") {
-      const doctorId =
-        field === "selectedDoctor" ? value.id : formData.selectedDoctor?.id;
-      const centerId =
-        field === "selectedCenter" ? value.id : formData.selectedCenter?.id;
-
-      if (doctorId && centerId) {
-        fetchAvailableDates(doctorId, centerId);
-      }
-    }
 
     if (field === "selectedDate" && formData.doshaType) {
       fetchTimeSlots(
@@ -331,13 +289,6 @@ const PanchakarmaBooking = () => {
   const goToStep3 = () => {
     if (formData.selectedDoctor && formData.selectedCenter) {
       setStep(3);
-      // Trigger date fetch if not already loaded
-      if (availableDates.length === 0) {
-        fetchAvailableDates(
-          formData.selectedDoctor.id,
-          formData.selectedCenter.id
-        );
-      }
     }
   };
 

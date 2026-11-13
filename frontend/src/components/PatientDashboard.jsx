@@ -23,10 +23,8 @@ const PatientDashboard = () => {
         const userRaw = localStorage.getItem("ayursutra_user");
         let patientId = "";
         if (userRaw) {
-          try {
-            const user = JSON.parse(userRaw);
-            patientId = user.id || user.patient_id || user.patientId || "";
-          } catch (e) {}
+          const user = JSON.parse(userRaw);
+          patientId = user.id || user.patient_id || user.patientId || "";
         }
         
         if (!patientId) throw new Error("No authenticated patient ID found");

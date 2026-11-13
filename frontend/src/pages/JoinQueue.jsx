@@ -1,7 +1,6 @@
 import { authHeaders, watchQueue } from "../api/auth";
 import { QRCodeSVG } from "qrcode.react";
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -39,7 +38,6 @@ const services = [
 ];
 
 const JoinQueue = () => {
-  const navigate = useNavigate();
 
   // Auth / Prefill
   const [currentUser, setCurrentUser] = useState(null);

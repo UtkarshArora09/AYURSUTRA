@@ -33,7 +33,6 @@ const QueueRescheduleCancel = () => {
 
   // Current queue data
   const [queueData, setQueueData] = useState(null);
-  const [realTimeQueueStatus, setRealTimeQueueStatus] = useState(null);
 
   // Reschedule states
   const [rescheduleData, setRescheduleData] = useState({
@@ -112,7 +111,7 @@ const QueueRescheduleCancel = () => {
   const connectWebSocket = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8080/queue-management';
+    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/queue-management';
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
@@ -151,7 +150,6 @@ const QueueRescheduleCancel = () => {
   const handleWebSocketMessage = (data) => {
     switch (data.type) {
       case 'queue_status_update':
-        setRealTimeQueueStatus(data.queueStatus);
         // Update local queue data with real-time info
         if (queueData && data.tokenNumber === queueData.tokenNumber) {
           setQueueData(prev => ({
@@ -244,11 +242,6 @@ const QueueRescheduleCancel = () => {
   const fetchRescheduleOptions = async () => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API calls
-      const [doctorsResponse, centersResponse] = await Promise.all([
-        fetch('/api/doctors/available'),
-        fetch('/api/centers/available')
-      ]);
 
       // Mock data for demo
       setAvailableDoctors([
@@ -429,16 +422,6 @@ const QueueRescheduleCancel = () => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'waiting': return 'blue';
-      case 'called': return 'green';
-      case 'served': return 'gray';
-      case 'cancelled': return 'red';
-      default: return 'gray';
-    }
   };
 
   return (

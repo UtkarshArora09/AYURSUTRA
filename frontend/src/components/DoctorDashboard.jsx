@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import {
   UserIcon,
   PhoneIcon,
@@ -55,10 +54,8 @@ const DoctorDashboard = () => {
       const userRaw = localStorage.getItem("ayursutra_user");
       let docId = "";
       if (userRaw) {
-        try {
-          const user = JSON.parse(userRaw);
-          docId = user.id || user.doctor_id || user.doctorId || "";
-        } catch (e) {}
+        const user = JSON.parse(userRaw);
+        docId = user.id || user.doctor_id || user.doctorId || "";
       }
       if (!docId) throw new Error("No authenticated doctor ID found");
 
@@ -85,7 +82,7 @@ const DoctorDashboard = () => {
         totalPatients: 1,
         pendingReports: 1,
       });
-    } catch (error) {
+    } catch {
       // Fallback handled
     }
   };
@@ -124,7 +121,7 @@ const DoctorDashboard = () => {
         },
       ]);
       setLoading(false);
-    } catch (error) {
+    } catch {
       setLoading(false);
     }
   };
@@ -166,18 +163,9 @@ const DoctorDashboard = () => {
           status: "confirmed",
         },
       ]);
-    } catch (error) {
+    } catch {
       // Fallback
     }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
   };
 
   const getCurrentDateTime = () => {

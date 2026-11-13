@@ -1053,7 +1053,6 @@ const LoginModal = ({
         {loginRole === "patient" && !showPatientReg && !showForgotPassword ? (
           <PatientLogin
             onBack={() => setLoginRole(null)}
-            setShowPatientReg={setShowPatientReg}
             setShowForgotPassword={setShowForgotPassword}
             email={email}
             setEmail={setEmail}
@@ -1110,7 +1109,6 @@ const LoginModal = ({
 // Patient Login Component
 const PatientLogin = ({
   onBack,
-  setShowPatientReg,
   setShowForgotPassword,
   email,
   setEmail,
@@ -1154,7 +1152,6 @@ const PatientLogin = ({
         Login
       </button>
       <div className="flex justify-between mt-2 text-sm">
-        {/* UPDATED: Use handlePatientRegistration instead of setShowPatientReg */}
         <button
           type="button"
           className="text-green-600 hover:underline"

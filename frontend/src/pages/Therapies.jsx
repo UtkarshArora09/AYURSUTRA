@@ -225,7 +225,7 @@ const Therapies = () => {
     }
   ];
 
-  const TabButton = ({ tabName, icon: Icon, title, isActive, onClick }) => (
+  const TabButton = ({ tabName, icon, title, isActive, onClick }) => (
     <button
       onClick={() => onClick(tabName)}
       className={`flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 rounded-xl font-medium transition-all duration-300 min-w-0 flex-1 sm:flex-none ${
@@ -234,7 +234,7 @@ const Therapies = () => {
           : 'bg-white text-gray-600 hover:text-green-600 hover:bg-green-50 border border-gray-200'
       }`}
     >
-      <Icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+      {React.createElement(icon, { className: "w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" })}
       <span className="text-sm sm:text-base whitespace-nowrap">{title}</span>
     </button>
   );
@@ -393,7 +393,7 @@ const Therapies = () => {
           </div>
         );
       
-      case 'assign':
+      case 'assign': {
         if (!patientId) {
           return (
             <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-xl mx-auto border border-gray-100">
@@ -538,8 +538,9 @@ const Therapies = () => {
             </div>
           </div>
         );
+      }
 
-      case 'track':
+      case 'track': {
         if (!patientId) {
           return (
             <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-xl mx-auto border border-gray-100">
@@ -708,7 +709,8 @@ const Therapies = () => {
             </div>
           </div>
         );
-      
+      }
+
       default:
         return null;
     }

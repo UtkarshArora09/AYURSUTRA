@@ -82,7 +82,7 @@ const AdminDashboard = () => {
         return;
       }
       setAdminUser(user);
-    } catch (e) {
+    } catch {
       navigate("/");
       return;
     }
@@ -204,8 +204,8 @@ const AdminDashboard = () => {
         // Update Doctor
         const { password, ...updateData } = docFormData;
         // Only send password if admin filled it out
-        if (docFormData.password) {
-          updateData.password = docFormData.password;
+        if (password) {
+          updateData.password = password;
         }
 
         const res = await fetch(`${API_BASE_URL}/api/admin/doctors/${editingDoctor.doctor_id || editingDoctor.id}`, {
@@ -309,8 +309,8 @@ const AdminDashboard = () => {
       if (editingTherapist) {
         // Update Therapist
         const { password, ...updateData } = therapistFormData;
-        if (therapistFormData.password) {
-          updateData.password = therapistFormData.password;
+        if (password) {
+          updateData.password = password;
         }
 
         const res = await fetch(

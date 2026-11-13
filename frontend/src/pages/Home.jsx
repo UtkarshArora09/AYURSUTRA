@@ -53,25 +53,6 @@ const highlights = [
 ];
 
 
-const faqItems = [
-  {
-    question: "What is Panchakarma?",
-    answer:
-      "Panchakarma is a set of five classic Ayurvedic detoxification therapies designed to cleanse the body and balance the doshas.",
-  },
-  {
-    question: "How do I book a therapy?",
-    answer:
-      "You can easily book sessions via our platform, choosing from available therapies and scheduling at your convenience.",
-  },
-  {
-    question: "Is Ayurvedic treatment safe?",
-    answer:
-      "All treatments are administered by certified doctors ensuring safety, personalized care, and ongoing support.",
-  },
-];
-
-
 const Home = () => (
   <div className="min-h-screen flex flex-col bg-gradient-to-br from-green-50 via-emerald-50 to-white">
     <Header />
